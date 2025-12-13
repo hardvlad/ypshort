@@ -10,8 +10,8 @@ import (
 )
 
 type Handlers struct {
-	conf  *config.Config
-	store *repository.Storage
+	Conf  *config.Config
+	Store *repository.Storage
 	Mux   *http.ServeMux
 }
 
@@ -22,22 +22,22 @@ type shortenerResponse struct {
 	code        int
 }
 
-var handlersData Handlers
+var HandlersData Handlers
 
 func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, shortenerHandler)
+	mux.HandleFunc(`/`, ShortenerHandler)
 
-	handlersData = Handlers{
-		conf:  conf,
-		store: store,
+	HandlersData = Handlers{
+		Conf:  conf,
+		Store: store,
 		Mux:   mux,
 	}
 
 	return mux
 }
 
-func shortenerHandler(w http.ResponseWriter, r *http.Request) {
+func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -76,7 +76,7 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 }
 
 func processRedirect(path string) shortenerResponse {
-	if url, ok := handlersData.store.Get(path); ok {
+	if url, ok := HandlersData.Store.Get(path); ok {
 		return shortenerResponse{
 			isError:     false,
 			redirectUrl: url,
@@ -92,9 +92,9 @@ func processRedirect(path string) shortenerResponse {
 }
 
 func processNewURL(body string) shortenerResponse {
-	shortLink := handlersData.conf.GenerateRandomString()
+	shortLink := HandlersData.Conf.GenerateRandomString()
 
-	if _, ok := handlersData.store.Get(shortLink); ok {
+	if _, ok := HandlersData.Store.Get(shortLink); ok {
 		return shortenerResponse{
 			isError: true,
 			message: "short link already exists",
@@ -102,11 +102,11 @@ func processNewURL(body string) shortenerResponse {
 		}
 	}
 
-	handlersData.store.Set(shortLink, body)
+	HandlersData.Store.Set(shortLink, body)
 
 	return shortenerResponse{
 		isError: false,
-		message: handlersData.conf.ServerAddress + shortLink,
+		message: HandlersData.Conf.ServerAddress + shortLink,
 		code:    http.StatusCreated,
 	}
 }
