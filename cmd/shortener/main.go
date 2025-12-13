@@ -15,7 +15,7 @@ const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func shortenerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		processNewUrl(w, r)
+		processNewURL(w, r)
 	}
 	if r.Method == http.MethodGet {
 		processRedirect(w, r)
@@ -32,10 +32,9 @@ func processRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "short link does not exist", http.StatusBadRequest)
-	return
 }
 
-func processNewUrl(w http.ResponseWriter, r *http.Request) {
+func processNewURL(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "can't read body", http.StatusBadRequest)
