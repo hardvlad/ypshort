@@ -96,6 +96,7 @@ func TestAdd(t *testing.T) {
 			assert.Equal(t, test.want.code, res.StatusCode)
 
 			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
 			require.NoError(t, err)
 			assert.Contains(t, string(resBody), handler.HandlersData.Conf.ServerAddress)
 		})
@@ -141,6 +142,7 @@ func TestExisting(t *testing.T) {
 
 			location := res.Header.Get("Location")
 			assert.Equal(t, test.want.response, location)
+			res.Body.Close()
 		})
 	}
 }
