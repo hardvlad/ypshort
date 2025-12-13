@@ -18,7 +18,7 @@ type Handlers struct {
 type shortenerResponse struct {
 	isError     bool
 	message     string
-	redirectUrl string
+	redirectURL string
 	code        int
 }
 
@@ -63,8 +63,8 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 	if resp.isError {
 		http.Error(w, resp.message, resp.code)
 	} else {
-		if resp.redirectUrl != "" {
-			http.Redirect(w, r, resp.redirectUrl, resp.code)
+		if resp.redirectURL != "" {
+			http.Redirect(w, r, resp.redirectURL, resp.code)
 		} else {
 			w.WriteHeader(resp.code)
 			_, err := w.Write([]byte(resp.message))
@@ -79,7 +79,7 @@ func processRedirect(path string) shortenerResponse {
 	if url, ok := HandlersData.Store.Get(path); ok {
 		return shortenerResponse{
 			isError:     false,
-			redirectUrl: url,
+			redirectURL: url,
 			code:        http.StatusTemporaryRedirect,
 		}
 	}
