@@ -46,7 +46,7 @@ func TestGetBefore(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, nil)
 
 			w := httptest.NewRecorder()
-			handler.ShortenerHandler(w, request)
+			handler.HandlersData.Mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -90,7 +90,7 @@ func TestAdd(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, strings.NewReader(test.body))
 
 			w := httptest.NewRecorder()
-			handler.ShortenerHandler(w, request)
+			handler.HandlersData.Mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -135,7 +135,7 @@ func TestExisting(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, nil)
 
 			w := httptest.NewRecorder()
-			handler.ShortenerHandler(w, request)
+			handler.HandlersData.Mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
