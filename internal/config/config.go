@@ -11,9 +11,9 @@ type Config struct {
 	Charset         string
 }
 
-func NewConfig() *Config {
+func NewConfig(serverAddress string) *Config {
 	return &Config{
-		ServerAddress:   "http://localhost:8080/",
+		ServerAddress:   serverAddress,
 		ShortLinkLength: 6,
 		Charset:         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
 	}

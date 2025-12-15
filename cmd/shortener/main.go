@@ -8,5 +8,6 @@ import (
 )
 
 func main() {
-	server.StartServer(`:8080`, handler.NewHandlers(config.NewConfig(), repository.NewStorage()))
+	parseFlags()
+	server.StartServer(runAddress, handler.NewHandlers(config.NewConfig(serverAddress), repository.NewStorage()))
 }
