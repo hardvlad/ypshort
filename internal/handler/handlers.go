@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"math/rand"
@@ -25,6 +26,10 @@ type shortenerResponse struct {
 	code        int
 }
 
+type URLRequest struct {
+	URL string `json:"url"`
+}
+
 func createPostHandler(data Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
@@ -47,6 +52,39 @@ func createGetHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
+func createPostJSONHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req URLRequest
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&req); err != nil {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "can't decode JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		if req.URL == "" {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "please post URL in JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		resp := processNewURL(data, req.URL)
+		if resp.isError {
+			writeResponse(w, r, resp)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(resp.code)
+			json.NewEncoder(w).Encode(map[string]string{"result": resp.message})
+		}
+	}
+}
+
 func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
 
 	mux := chi.NewRouter()
@@ -58,6 +96,7 @@ func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
 
 	mux.Post(`/`, createPostHandler(handlersData))
 	mux.Get(`/{code}`, createGetHandler(handlersData))
+	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
 
 	return mux
 }
