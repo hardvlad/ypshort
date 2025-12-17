@@ -39,7 +39,7 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig(serverAddress), repository.NewStorage())
+	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig(serverAddress), repository.NewStorage())
+	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestExisting(t *testing.T) {
 		want   want
 	}{
 		{
-			name:   "add test #1",
+			name:   "existing test #1",
 			method: http.MethodGet,
 			target: "/xxxxxxxxxx",
 			want: want{
@@ -127,7 +127,7 @@ func TestExisting(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig(serverAddress), repository.NewStorage())
+	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
 	handler.HandlersData.Store.Set(`xxxxxxxxxx`, "https://ya.ru")
 
 	for _, test := range tests {

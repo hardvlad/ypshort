@@ -4,13 +4,19 @@ import (
 	"flag"
 )
 
-var runAddress string
-var serverAddress string
+type programFlags struct {
+	RunAddress    string
+	ServerAddress string
+}
 
-func parseFlags() {
+func parseFlags() programFlags {
 
-	flag.StringVar(&runAddress, "a", ":8080", "адрес запуска HTTP-сервера")
-	flag.StringVar(&serverAddress, "b", "http://localhost:8080/", "базовый адрес результирующего сокращённого URL")
+	var flags programFlags
+
+	flag.StringVar(&flags.RunAddress, "a", ":8080", "адрес запуска HTTP-сервера")
+	flag.StringVar(&flags.ServerAddress, "b", "http://localhost:8080/", "базовый адрес результирующего сокращённого URL")
 
 	flag.Parse()
+
+	return flags
 }

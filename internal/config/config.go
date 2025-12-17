@@ -1,10 +1,5 @@
 package config
 
-import (
-	"math/rand"
-	"strings"
-)
-
 type Config struct {
 	ServerAddress   string
 	ShortLinkLength int
@@ -17,13 +12,4 @@ func NewConfig(serverAddress string) *Config {
 		ShortLinkLength: 6,
 		Charset:         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
 	}
-}
-
-func (conf *Config) GenerateRandomString() string {
-	sb := strings.Builder{}
-	sb.Grow(conf.ShortLinkLength)
-	for i := 0; i < conf.ShortLinkLength; i++ {
-		sb.WriteByte(conf.Charset[rand.Intn(len(conf.Charset))])
-	}
-	return sb.String()
 }

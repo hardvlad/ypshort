@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/repository"
@@ -8,6 +10,9 @@ import (
 )
 
 func main() {
-	parseFlags()
-	server.StartServer(runAddress, handler.NewHandlers(config.NewConfig(serverAddress), repository.NewStorage()))
+	flags := parseFlags()
+	err := server.StartServer(flags.RunAddress, handler.NewHandlers(config.NewConfig(flags.ServerAddress), repository.NewStorage()))
+	if err != nil {
+		log.Fatal(err)
+	}
 }

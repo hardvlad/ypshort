@@ -2,7 +2,9 @@ package handler
 
 import (
 	"io"
+	"math/rand"
 	"net/http"
+	"sync"
 
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
@@ -11,9 +13,10 @@ import (
 )
 
 type Handlers struct {
-	Conf  *config.Config
-	Store *repository.Storage
-	Mux   *chi.Mux
+	Conf      *config.Config
+	Store     *repository.Storage
+	Mux       *chi.Mux
+	LockMutex sync.Mutex
 }
 
 type shortenerResponse struct {
@@ -92,21 +95,42 @@ func processRedirect(path string) shortenerResponse {
 }
 
 func processNewURL(body string) shortenerResponse {
-	shortLink := HandlersData.Conf.GenerateRandomString()
 
-	if _, ok := HandlersData.Store.Get(shortLink); ok {
-		return shortenerResponse{
-			isError: true,
-			message: "short link already exists",
-			code:    http.StatusBadRequest,
+	success := false
+	maxAttempts := 5
+	var shortLink string
+
+	for i := 0; i < maxAttempts; i++ {
+		shortLink = GenerateRandomString(HandlersData.Conf)
+		if _, ok := HandlersData.Store.Get(shortLink); !ok {
+			success = true
+			break
 		}
 	}
 
+	if !success {
+		return shortenerResponse{
+			isError: true,
+			message: "failed to generate unique short link",
+			code:    http.StatusInternalServerError,
+		}
+	}
+
+	HandlersData.LockMutex.Lock()
 	HandlersData.Store.Set(shortLink, body)
+	HandlersData.LockMutex.Unlock()
 
 	return shortenerResponse{
 		isError: false,
 		message: HandlersData.Conf.ServerAddress + shortLink,
 		code:    http.StatusCreated,
 	}
+}
+
+func GenerateRandomString(conf *config.Config) string {
+	b := make([]byte, conf.ShortLinkLength)
+	for i := 0; i < conf.ShortLinkLength; i++ {
+		b[i] = conf.Charset[rand.Intn(len(conf.Charset))]
+	}
+	return string(b[:])
 }
