@@ -4,6 +4,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/hardvlad/ypshort/internal/config"
@@ -120,9 +121,15 @@ func processNewURL(body string) shortenerResponse {
 	HandlersData.Store.Set(shortLink, body)
 	HandlersData.LockMutex.Unlock()
 
+	fullUrl := HandlersData.Conf.ServerAddress
+	if !strings.HasSuffix(fullUrl, "/") {
+		fullUrl += "/"
+	}
+	fullUrl += shortLink
+
 	return shortenerResponse{
 		isError: false,
-		message: HandlersData.Conf.ServerAddress + shortLink,
+		message: fullUrl,
 		code:    http.StatusCreated,
 	}
 }
