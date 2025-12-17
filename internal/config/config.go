@@ -7,6 +7,10 @@ type Config struct {
 }
 
 func NewConfig(serverAddress string) *Config {
+	if serverAddress == "" {
+		serverAddress = "http://localhost:8080/"
+	}
+
 	return &Config{
 		ServerAddress:   serverAddress,
 		ShortLinkLength: 6,
