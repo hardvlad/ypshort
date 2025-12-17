@@ -149,3 +149,47 @@ func TestExisting(t *testing.T) {
 		})
 	}
 }
+
+func TestAddJson(t *testing.T) {
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+	tests := []struct {
+		name   string
+		method string
+		target string
+		body   string
+		want   want
+	}{
+		{
+			name:   "add test JSON #1",
+			method: http.MethodPost,
+			target: "/api/shorten",
+			body:   `{"url":"https://ya.ru"}`,
+			want: want{
+				code: 201,
+			},
+		},
+	}
+
+	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(test.method, test.target, strings.NewReader(test.body))
+
+			w := httptest.NewRecorder()
+			handler.HandlersData.Mux.ServeHTTP(w, request)
+
+			res := w.Result()
+			assert.Equal(t, test.want.code, res.StatusCode)
+
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			require.NoError(t, err)
+			assert.Contains(t, string(resBody), "http://localhost:8080/")
+		})
+	}
+}
