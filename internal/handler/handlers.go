@@ -121,15 +121,15 @@ func processNewURL(body string) shortenerResponse {
 	HandlersData.Store.Set(shortLink, body)
 	HandlersData.LockMutex.Unlock()
 
-	fullUrl := HandlersData.Conf.ServerAddress
-	if !strings.HasSuffix(fullUrl, "/") {
-		fullUrl += "/"
+	fullURL := HandlersData.Conf.ServerAddress
+	if !strings.HasSuffix(fullURL, "/") {
+		fullURL += "/"
 	}
-	fullUrl += shortLink
+	fullURL += shortLink
 
 	return shortenerResponse{
 		isError: false,
-		message: fullUrl,
+		message: fullURL,
 		code:    http.StatusCreated,
 	}
 }
