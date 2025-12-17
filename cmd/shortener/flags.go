@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strings"
 )
 
 type programFlags struct {
@@ -15,6 +16,10 @@ func parseFlags() programFlags {
 
 	flag.StringVar(&flags.RunAddress, "a", ":8080", "адрес запуска HTTP-сервера")
 	flag.StringVar(&flags.ServerAddress, "b", "http://localhost:8080/", "базовый адрес результирующего сокращённого URL")
+
+	if !strings.HasSuffix(flags.ServerAddress, "/") {
+		flags.ServerAddress += "/"
+	}
 
 	flag.Parse()
 
