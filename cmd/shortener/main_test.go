@@ -174,14 +174,14 @@ func TestAddJson(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+	mux := handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, strings.NewReader(test.body))
 
 			w := httptest.NewRecorder()
-			handler.HandlersData.Mux.ServeHTTP(w, request)
+			mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
