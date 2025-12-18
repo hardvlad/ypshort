@@ -3,15 +3,15 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"encoding/json"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
@@ -29,6 +29,25 @@ type shortenerResponse struct {
 type URLRequest struct {
 	URL string `json:"url"`
 }
+type URLRequest struct {
+	URL string `json:"url"`
+}
+
+var HandlersData Handlers
+
+func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
+
+	mux := chi.NewRouter()
+
+	mux.Post(`/`, PostHandler)
+	mux.Get(`/{code}`, GetHandler)
+	mux.Post(`/api/shorten`, PostJSONHandler)
+
+	HandlersData = Handlers{
+		Conf:  conf,
+		Store: store,
+		Mux:   mux,
+	}
 
 func createPostHandler(data Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +83,50 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 			})
 			return
 		}
+	return mux
+}
+
+func PostJSONHandler(w http.ResponseWriter, r *http.Request) {
+	var req URLRequest
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		writeResponse(w, r, shortenerResponse{
+			isError: true,
+			message: "can't decode JSON",
+			code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if req.URL == "" {
+		writeResponse(w, r, shortenerResponse{
+			isError: true,
+			message: "please post URL in JSON",
+			code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	resp := processNewURL(req.URL)
+	if resp.isError {
+		writeResponse(w, r, resp)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.code)
+		json.NewEncoder(w).Encode(map[string]string{"result": resp.message})
+	}
+}
+
+func PostHandler(w http.ResponseWriter, r *http.Request) {
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeResponse(w, r, shortenerResponse{
+			isError: true,
+			message: "can't read body",
+			code:    http.StatusBadRequest,
+		})
+		return
+	}
 
 		if req.URL == "" {
 			writeResponse(w, r, shortenerResponse{
