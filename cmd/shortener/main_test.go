@@ -39,14 +39,14 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+	mux := handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, nil)
 
 			w := httptest.NewRecorder()
-			handler.HandlersData.Mux.ServeHTTP(w, request)
+			mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -83,14 +83,15 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+	conf := config.NewConfig("http://localhost:8080/")
+	mux := handler.NewHandlers(conf, repository.NewStorage())
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, strings.NewReader(test.body))
 
 			w := httptest.NewRecorder()
-			handler.HandlersData.Mux.ServeHTTP(w, request)
+			mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -98,7 +99,7 @@ func TestAdd(t *testing.T) {
 			resBody, err := io.ReadAll(res.Body)
 			res.Body.Close()
 			require.NoError(t, err)
-			assert.Contains(t, string(resBody), handler.HandlersData.Conf.ServerAddress)
+			assert.Contains(t, string(resBody), conf.ServerAddress)
 		})
 	}
 }
@@ -127,15 +128,17 @@ func TestExisting(t *testing.T) {
 		},
 	}
 
-	handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
-	handler.HandlersData.Store.Set(`xxxxxxxxxx`, "https://ya.ru")
+	conf := config.NewConfig("http://localhost:8080/")
+	store := repository.NewStorage()
+	mux := handler.NewHandlers(conf, store)
+	store.Set(`xxxxxxxxxx`, "https://ya.ru")
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, test.target, nil)
 
 			w := httptest.NewRecorder()
-			handler.HandlersData.Mux.ServeHTTP(w, request)
+			mux.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)

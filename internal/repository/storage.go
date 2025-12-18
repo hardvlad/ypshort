@@ -1,7 +1,13 @@
 package repository
 
+import (
+	"errors"
+	"sync"
+)
+
 type Storage struct {
 	kvStorage map[string]string
+	mu        sync.Mutex
 }
 
 func NewStorage() *Storage {
@@ -15,6 +21,14 @@ func (s *Storage) Get(key string) (string, bool) {
 	return value, ok
 }
 
-func (s *Storage) Set(key, value string) {
+var ErrorKeyExists = errors.New("key already exists")
+
+func (s *Storage) Set(key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.kvStorage[key]; exists {
+		return ErrorKeyExists
+	}
 	s.kvStorage[key] = value
+	return nil
 }

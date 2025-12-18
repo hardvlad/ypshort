@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"math/rand"
 	"net/http"
-	"strings"
-	"sync"
+	"net/url"
 
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
@@ -14,10 +14,8 @@ import (
 )
 
 type Handlers struct {
-	Conf      *config.Config
-	Store     *repository.Storage
-	Mux       *chi.Mux
-	LockMutex sync.Mutex
+	Conf  *config.Config
+	Store *repository.Storage
 }
 
 type shortenerResponse struct {
@@ -27,40 +25,41 @@ type shortenerResponse struct {
 	code        int
 }
 
-var HandlersData Handlers
+func createPostHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "can't read body",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		writeResponse(w, r, processNewURL(data, string(bodyBytes)))
+	}
+}
+
+func createGetHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeResponse(w, r, processRedirect(data, chi.URLParam(r, "code")))
+	}
+}
 
 func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
 
 	mux := chi.NewRouter()
 
-	mux.Post(`/`, PostHandler)
-	mux.Get(`/{code}`, GetHandler)
-
-	HandlersData = Handlers{
+	handlersData := Handlers{
 		Conf:  conf,
 		Store: store,
-		Mux:   mux,
 	}
+
+	mux.Post(`/`, createPostHandler(handlersData))
+	mux.Get(`/{code}`, createGetHandler(handlersData))
 
 	return mux
-}
-
-func PostHandler(w http.ResponseWriter, r *http.Request) {
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeResponse(w, r, shortenerResponse{
-			isError: true,
-			message: "can't read body",
-			code:    http.StatusBadRequest,
-		})
-		return
-	}
-
-	writeResponse(w, r, processNewURL(string(bodyBytes)))
-}
-
-func GetHandler(w http.ResponseWriter, r *http.Request) {
-	writeResponse(w, r, processRedirect(chi.URLParam(r, "code")))
 }
 
 func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerResponse) {
@@ -79,11 +78,11 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 	}
 }
 
-func processRedirect(path string) shortenerResponse {
-	if url, ok := HandlersData.Store.Get(path); ok {
+func processRedirect(data Handlers, path string) shortenerResponse {
+	if urlRedirect, ok := data.Store.Get(path); ok {
 		return shortenerResponse{
 			isError:     false,
-			redirectURL: url,
+			redirectURL: urlRedirect,
 			code:        http.StatusTemporaryRedirect,
 		}
 	}
@@ -95,15 +94,20 @@ func processRedirect(path string) shortenerResponse {
 	}
 }
 
-func processNewURL(body string) shortenerResponse {
+func processNewURL(data Handlers, body string) shortenerResponse {
 
 	success := false
 	maxAttempts := 5
 	var shortLink string
 
 	for i := 0; i < maxAttempts; i++ {
-		shortLink = GenerateRandomString(HandlersData.Conf)
-		if _, ok := HandlersData.Store.Get(shortLink); !ok {
+		shortLink = GenerateRandomString(data.Conf)
+		err := data.Store.Set(shortLink, body)
+		if err != nil {
+			if errors.Is(err, repository.ErrorKeyExists) {
+				continue
+			}
+		} else {
 			success = true
 			break
 		}
@@ -112,20 +116,19 @@ func processNewURL(body string) shortenerResponse {
 	if !success {
 		return shortenerResponse{
 			isError: true,
-			message: "failed to generate unique short link",
+			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
 		}
 	}
 
-	HandlersData.LockMutex.Lock()
-	HandlersData.Store.Set(shortLink, body)
-	HandlersData.LockMutex.Unlock()
-
-	fullURL := HandlersData.Conf.ServerAddress
-	if !strings.HasSuffix(fullURL, "/") {
-		fullURL += "/"
+	fullURL, err := url.JoinPath(data.Conf.ServerAddress, shortLink)
+	if err != nil {
+		return shortenerResponse{
+			isError: false,
+			message: http.StatusText(http.StatusInternalServerError),
+			code:    http.StatusInternalServerError,
+		}
 	}
-	fullURL += shortLink
 
 	return shortenerResponse{
 		isError: false,
