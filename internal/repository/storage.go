@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -27,7 +28,7 @@ func (s *Storage) Set(key, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.kvStorage[key]; exists {
-		return ErrorKeyExists
+		return fmt.Errorf("%w: %s", ErrorKeyExists, key)
 	}
 	s.kvStorage[key] = value
 	return nil
