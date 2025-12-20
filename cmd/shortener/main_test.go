@@ -39,7 +39,9 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
-	mux := handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+	conf := config.NewConfig("http://localhost:8080/")
+	storage, _ := repository.NewStorage(conf.FileName)
+	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -84,7 +86,8 @@ func TestAdd(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	mux := handler.NewHandlers(conf, repository.NewStorage())
+	storage, _ := repository.NewStorage(conf.FileName)
+	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -129,9 +132,9 @@ func TestExisting(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	store := repository.NewStorage()
-	mux := handler.NewHandlers(conf, store)
-	store.Set(`xxxxxxxxxx`, "https://ya.ru")
+	storage, _ := repository.NewStorage(conf.FileName)
+	mux := handler.NewHandlers(conf, storage)
+	storage.Set(`xxxxxxxxxx`, "https://ya.ru")
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -174,7 +177,9 @@ func TestAddJson(t *testing.T) {
 		},
 	}
 
-	mux := handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+	conf := config.NewConfig("http://localhost:8080/")
+	storage, _ := repository.NewStorage(conf.FileName)
+	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
