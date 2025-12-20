@@ -9,6 +9,7 @@ import (
 type programFlags struct {
 	RunAddress    string
 	ServerAddress string
+	FileName      string
 }
 
 func parseFlags() programFlags {
@@ -25,11 +26,16 @@ func parseFlags() programFlags {
 		flags.ServerAddress = envServAddr
 	}
 
-	if !strings.HasSuffix(flags.ServerAddress, "/") {
-		flags.ServerAddress += "/"
+	flag.StringVar(&flags.FileName, "f", "shortener_db.json", "файл данных сервиса")
+	if envFileName := os.Getenv("FILE_STORAGE_PATH"); envFileName != "" {
+		flags.FileName = envFileName
 	}
 
 	flag.Parse()
+
+	if !strings.HasSuffix(flags.ServerAddress, "/") {
+		flags.ServerAddress += "/"
+	}
 
 	return flags
 }

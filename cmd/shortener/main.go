@@ -24,8 +24,13 @@ func main() {
 	logger.Sugar = *myLogger.Sugar()
 	logger.Sugar.Infow("Старт сервера", "addr", flags.RunAddress)
 
-	err2 := server.StartServer(flags.RunAddress, handler.RequestDecompressHandle(handler.ResponseCompressHandle(logger.WithLogging(handler.NewHandlers(config.NewConfig(flags.ServerAddress), repository.NewStorage())))))
+	storage, err2 := repository.NewStorage(flags.FileName)
 	if err2 != nil {
-		logger.Sugar.Fatalw(err2.Error(), "event", "start server")
+		logger.Sugar.Fatalw(err2.Error(), "event", "init storage, file: "+flags.FileName)
+	}
+
+	err3 := server.StartServer(flags.RunAddress, handler.RequestDecompressHandle(handler.ResponseCompressHandle(logger.WithLogging(handler.NewHandlers(config.NewConfig(flags.ServerAddress), storage)))))
+	if err3 != nil {
+		logger.Sugar.Fatalw(err3.Error(), "event", "start server")
 	}
 }
