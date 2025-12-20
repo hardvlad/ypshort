@@ -24,7 +24,7 @@ func main() {
 	logger.Sugar = *myLogger.Sugar()
 	logger.Sugar.Infow("Старт сервера", "addr", flags.RunAddress)
 
-	err2 := server.StartServer(flags.RunAddress, logger.WithLogging(handler.NewHandlers(config.NewConfig(flags.ServerAddress), repository.NewStorage())))
+	err2 := server.StartServer(flags.RunAddress, handler.RequestDecompressHandle(handler.ResponseCompressHandle(logger.WithLogging(handler.NewHandlers(config.NewConfig(flags.ServerAddress), repository.NewStorage())))))
 	if err2 != nil {
 		logger.Sugar.Fatalw(err2.Error(), "event", "start server")
 	}

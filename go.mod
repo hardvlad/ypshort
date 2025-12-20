@@ -3,6 +3,7 @@ module github.com/hardvlad/ypshort
 go 1.24.11
 
 require (
+	github.com/andybalholm/brotli v1.2.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1

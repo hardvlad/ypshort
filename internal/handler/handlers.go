@@ -108,6 +108,7 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 		if resp.redirectURL != "" {
 			http.Redirect(w, r, resp.redirectURL, resp.code)
 		} else {
+			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(resp.code)
 			_, err := w.Write([]byte(resp.message))
 			if err != nil {
