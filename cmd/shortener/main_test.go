@@ -40,7 +40,8 @@ func TestGetBefore(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	storage, _ := repository.NewStorage(conf.FileName)
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
@@ -86,7 +87,8 @@ func TestAdd(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	storage, _ := repository.NewStorage(conf.FileName)
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
@@ -132,9 +134,11 @@ func TestExisting(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	storage, _ := repository.NewStorage(conf.FileName)
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage)
-	storage.Set(`xxxxxxxxxx`, "https://ya.ru")
+	err = storage.Set(`xxxxxxxxxx`, "https://ya.ru")
+	require.NoError(t, err)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -178,7 +182,8 @@ func TestAddJson(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	storage, _ := repository.NewStorage(conf.FileName)
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {

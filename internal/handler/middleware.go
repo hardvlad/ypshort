@@ -6,9 +6,11 @@ import (
 	"compress/zlib"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/andybalholm/brotli"
+	"go.uber.org/zap"
 )
 
 type compressWriter struct {
@@ -33,35 +35,33 @@ func (w *compressWriter) WriteHeader(statusCode int) {
 	w.setStatusCode = statusCode
 }
 
-func ResponseCompressHandle(next http.Handler) http.Handler {
+func ResponseCompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		encoding := ""
-		var writer io.Writer
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		var writer io.WriteCloser
 		var err error = nil
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "br") {
-			wrb := brotli.NewWriterLevel(w, brotli.BestCompression)
-			writer = wrb
-			encoding = "br"
-			defer wrb.Close()
-		} else if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			wr, err1 := gzip.NewWriterLevel(w, gzip.BestCompression)
-			err = err1
-			writer = wr
-			encoding = "gzip"
-			defer wr.Close()
-		} else if strings.Contains(r.Header.Get("Accept-Encoding"), "deflate") {
-			wr, err1 := zlib.NewWriterLevel(w, flate.BestCompression)
-			err = err1
-			writer = wr
-			encoding = "deflate"
-			defer wr.Close()
+		encoding := ""
+
+		if slices.Contains([]string{"br", "gzip", "deflate"}, acceptEncoding) {
+			encoding = acceptEncoding
+			switch acceptEncoding {
+			case "br":
+				writer = brotli.NewWriterLevel(w, brotli.BestCompression)
+			case "gzip":
+				writer, err = gzip.NewWriterLevel(w, gzip.BestCompression)
+			case "deflate":
+				writer, err = zlib.NewWriterLevel(w, flate.BestCompression)
+			}
+
+			if err != nil {
+				next.ServeHTTP(w, r)
+				sugarLogger.Error(err.Error(), "сжатие ответа", acceptEncoding)
+				return
+			}
+
+			defer writer.Close()
 		} else {
 			next.ServeHTTP(w, r)
-			return
-		}
-
-		if err != nil {
-			io.WriteString(w, err.Error())
 			return
 		}
 
@@ -69,7 +69,7 @@ func ResponseCompressHandle(next http.Handler) http.Handler {
 	})
 }
 
-func RequestDecompressHandle(next http.Handler) http.Handler {
+func RequestDecompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var reader io.ReadCloser
@@ -94,7 +94,8 @@ func RequestDecompressHandle(next http.Handler) http.Handler {
 		}
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sugarLogger.Error(err.Error(), "распаковка запроса", contentEncoding)
 			return
 		}
 

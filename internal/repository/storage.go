@@ -6,26 +6,33 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 type Storage struct {
-	kvStorage map[string]string
-	mu        sync.Mutex
-	fileName  string
+	kvStorage   map[string]string
+	mu          sync.Mutex
+	fileName    string
+	sugarLogger *zap.SugaredLogger
 }
 
 type JSONParseMap struct {
 	Data map[string]string `json:",unknown"`
 }
 
-func NewStorage(fileName string) (*Storage, error) {
+func NewStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
+	if fileName == "" {
+		return makeEmptyStorage(fileName, sugarLogger)
+	}
+
 	if _, err := os.Stat(fileName); errors.Is(err, os.ErrNotExist) {
-		return makeEmptyStorage(fileName)
+		return makeEmptyStorage(fileName, sugarLogger)
 	}
 
 	file, err := os.OpenFile(fileName, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", err, fileName)
 	}
 	defer file.Close()
 
@@ -36,18 +43,20 @@ func NewStorage(fileName string) (*Storage, error) {
 
 	if data.Data != nil {
 		return &Storage{
-			kvStorage: data.Data,
-			fileName:  fileName,
+			kvStorage:   data.Data,
+			fileName:    fileName,
+			sugarLogger: sugarLogger,
 		}, nil
 	}
 
-	return makeEmptyStorage(fileName)
+	return makeEmptyStorage(fileName, sugarLogger)
 }
 
-func makeEmptyStorage(fileName string) (*Storage, error) {
+func makeEmptyStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
 	return &Storage{
-		kvStorage: make(map[string]string),
-		fileName:  fileName,
+		kvStorage:   make(map[string]string),
+		fileName:    fileName,
+		sugarLogger: sugarLogger,
 	}, nil
 }
 
@@ -72,6 +81,9 @@ func (s *Storage) Set(key, value string) error {
 }
 
 func (s *Storage) persistToFile() {
+	if s.fileName == "" {
+		return
+	}
 
 	file, err := os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -81,5 +93,8 @@ func (s *Storage) persistToFile() {
 
 	data := JSONParseMap{Data: s.kvStorage}
 	encoder := json.NewEncoder(file)
-	_ = encoder.Encode(data)
+	err = encoder.Encode(data)
+	if err != nil && s.sugarLogger != nil {
+		s.sugarLogger.Errorw(err.Error(), "event", "persist to file")
+	}
 }
