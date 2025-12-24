@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 
 	"github.com/hardvlad/ypshort/internal/config"
@@ -57,7 +58,7 @@ func main() {
 			sugarLogger.Fatalw(err.Error(), "event", "подготовка к миграции 2")
 		}
 		err = m.Up()
-		if err != nil {
+		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			sugarLogger.Fatalw(err.Error(), "event", "применение миграции")
 		}
 	}
