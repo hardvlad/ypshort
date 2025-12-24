@@ -33,7 +33,7 @@ func parseFlags() programFlags {
 	}
 
 	flag.StringVar(&flags.Dsn, "d", "", "строка подключения к базе данных")
-	if envDsn, exists := os.LookupEnv("DATABASE_DSN"); exists {
+	if envDsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		flags.Dsn = envDsn
 	}
 

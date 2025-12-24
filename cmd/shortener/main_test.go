@@ -39,10 +39,10 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/")
+	conf := config.NewConfig("http://localhost:8080/", "")
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage)
+	mux := handler.NewHandlers(conf, storage, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -86,10 +86,10 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/")
+	conf := config.NewConfig("http://localhost:8080/", "")
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage)
+	mux := handler.NewHandlers(conf, storage, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -133,10 +133,10 @@ func TestExisting(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/")
+	conf := config.NewConfig("http://localhost:8080/", "")
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage)
+	mux := handler.NewHandlers(conf, storage, nil)
 	err = storage.Set(`xxxxxxxxxx`, "https://ya.ru")
 	require.NoError(t, err)
 
@@ -181,10 +181,10 @@ func TestAddJson(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/")
+	conf := config.NewConfig("http://localhost:8080/", "")
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage)
+	mux := handler.NewHandlers(conf, storage, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

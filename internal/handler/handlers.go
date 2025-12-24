@@ -131,7 +131,9 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 func pingDB(data Handlers) shortenerResponse {
 	database, err := data.Conf.DbConfig.InitDB()
 	if err != nil {
-		data.Logger.Errorw(err.Error(), "event", "соединение с базой данных")
+		if data.Logger != nil {
+			data.Logger.Errorw(err.Error(), "event", "соединение с базой данных")
+		}
 		return shortenerResponse{
 			isError: false,
 			message: http.StatusText(http.StatusInternalServerError),
