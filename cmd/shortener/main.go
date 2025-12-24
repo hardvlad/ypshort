@@ -49,6 +49,7 @@ func main() {
 		if err != nil {
 			sugarLogger.Fatalw(err.Error(), "event", "подготовка к миграции")
 		}
+
 		m, err := migrate.NewWithDatabaseInstance(
 			"file://./migrations",
 			"postgres", driver)
