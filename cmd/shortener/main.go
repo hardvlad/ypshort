@@ -9,6 +9,11 @@ import (
 	"github.com/hardvlad/ypshort/internal/repository"
 	"github.com/hardvlad/ypshort/internal/repository/pg"
 	"github.com/hardvlad/ypshort/internal/server"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -39,6 +44,21 @@ func main() {
 	} else {
 		store = pg.NewPGStorage(db, sugarLogger)
 		defer db.Close()
+
+		driver, err := postgres.WithInstance(db, &postgres.Config{})
+		if err != nil {
+			sugarLogger.Fatalw(err.Error(), "event", "подготовка к миграции")
+		}
+		m, err := migrate.NewWithDatabaseInstance(
+			"file://./migrations",
+			"postgres", driver)
+		if err != nil {
+			sugarLogger.Fatalw(err.Error(), "event", "подготовка к миграции 2")
+		}
+		err = m.Up()
+		if err != nil {
+			sugarLogger.Fatalw(err.Error(), "event", "применение миграции")
+		}
 	}
 
 	err = server.StartServer(flags.RunAddress, logger.WithLogging(
