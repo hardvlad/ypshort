@@ -76,7 +76,7 @@ func (s *Storage) Set(key, value string) error {
 	s.kvStorage[key] = value
 
 	err := s.persistToFile()
-	if err != nil {
+	if err != nil && s.sugarLogger != nil {
 		s.sugarLogger.Errorw("ошибка записи в базу", "err", err.Error())
 	}
 
@@ -97,7 +97,7 @@ func (s *Storage) persistToFile() error {
 	data := JSONParseMap{Data: s.kvStorage}
 	encoder := json.NewEncoder(file)
 	err = encoder.Encode(data)
-	if err != nil && s.sugarLogger != nil {
+	if err != nil {
 		return fmt.Errorf("ошибка сериализации в базу %w: %s", err, s.fileName)
 	}
 	return nil
