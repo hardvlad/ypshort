@@ -289,7 +289,7 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 	if urlAlreadyExisted {
 		return shortenerResponse{
 			isError: false,
-			message: http.StatusText(http.StatusConflict),
+			message: fullURL,
 			code:    http.StatusConflict,
 		}
 	}
