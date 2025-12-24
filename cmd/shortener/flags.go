@@ -10,6 +10,7 @@ type programFlags struct {
 	RunAddress    string
 	ServerAddress string
 	FileName      string
+	Dsn           string
 }
 
 func parseFlags() programFlags {
@@ -29,6 +30,11 @@ func parseFlags() programFlags {
 	flag.StringVar(&flags.FileName, "f", "shortener_db.json", "файл данных сервиса")
 	if envFileName, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		flags.FileName = envFileName
+	}
+
+	flag.StringVar(&flags.Dsn, "d", "", "строка подключения к базе данных")
+	if envDsn, exists := os.LookupEnv("DATABASE_DSN"); exists {
+		flags.Dsn = envDsn
 	}
 
 	flag.Parse()
