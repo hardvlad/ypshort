@@ -32,7 +32,7 @@ func main() {
 	err = server.StartServer(flags.RunAddress, logger.WithLogging(
 		handler.RequestDecompressHandle(
 			handler.ResponseCompressHandle(
-				handler.NewHandlers(config.NewConfig(flags.ServerAddress), storage),
+				handler.NewHandlers(config.NewConfig(flags.ServerAddress, flags.Dsn), storage, sugarLogger),
 				sugarLogger,
 			),
 			sugarLogger,

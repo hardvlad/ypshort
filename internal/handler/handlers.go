@@ -10,13 +10,15 @@ import (
 
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"go.uber.org/zap"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
-	Conf  *config.Config
-	Store *repository.Storage
+	Conf   *config.Config
+	Store  *repository.Storage
+	Logger *zap.SugaredLogger
 }
 
 type shortenerResponse struct {
@@ -85,18 +87,26 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
-func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
+func createPingDBHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeResponse(w, r, pingDB(data))
+	}
+}
+
+func NewHandlers(conf *config.Config, store *repository.Storage, sugarLogger *zap.SugaredLogger) http.Handler {
 
 	mux := chi.NewRouter()
 
 	handlersData := Handlers{
-		Conf:  conf,
-		Store: store,
+		Conf:   conf,
+		Store:  store,
+		Logger: sugarLogger,
 	}
 
 	mux.Post(`/`, createPostHandler(handlersData))
 	mux.Get(`/{code}`, createGetHandler(handlersData))
 	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
+	mux.Get(`/ping`, createPingDBHandler(handlersData))
 
 	return mux
 }
@@ -115,6 +125,26 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 				return
 			}
 		}
+	}
+}
+
+func pingDB(data Handlers) shortenerResponse {
+	database, err := data.Conf.DbConfig.InitDB()
+	if err != nil {
+		data.Logger.Errorw(err.Error(), "event", "соединение с базой данных")
+		return shortenerResponse{
+			isError: false,
+			message: http.StatusText(http.StatusInternalServerError),
+			code:    http.StatusInternalServerError,
+		}
+	}
+
+	database.Close()
+
+	return shortenerResponse{
+		isError: false,
+		message: http.StatusText(http.StatusOK),
+		code:    http.StatusOK,
 	}
 }
 
