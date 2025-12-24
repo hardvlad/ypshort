@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/hardvlad/ypshort/internal/repository"
@@ -28,24 +29,45 @@ func (s *Storage) Get(key string) (string, bool) {
 	err := row.Scan(&savedURL)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			s.logger.Debugw(err.Error(), "event", "get from DB", key)
+			s.logger.Debugw(err.Error(), "event", "get from DB", "code", key)
 		}
 		return "", false
 	}
 	return savedURL, true
 }
 
-func (s *Storage) Set(key, value string) error {
+func (s *Storage) GetCode(url string) (string, bool) {
+	row := s.DBConn.QueryRowContext(context.Background(), "SELECT code from saved_links where url = $1 limit 1", url)
+
+	var savedCode string
+	err := row.Scan(&savedCode)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			s.logger.Debugw(err.Error(), "event", "get code from DB", "url", url)
+		}
+		return "", false
+	}
+	return savedCode, true
+}
+
+func (s *Storage) Set(key, value string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, exists := s.Get(key); exists {
-		return fmt.Errorf("%w: %s", repository.ErrorKeyExists, key)
+		return "", fmt.Errorf("%w: %s", repository.ErrorKeyExists, key)
 	}
 
 	_, err := s.DBConn.ExecContext(context.Background(), "INSERT INTO saved_links (code, url) VALUES ($1, $2)", key, value)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "SQLSTATE 23505") {
+			if code, exists := s.GetCode(value); exists {
+				return code, nil
+			}
+		} else {
+			fmt.Println("Error not PG %w", err)
+		}
+		return "", err
 	}
-	return nil
+	return key, nil
 }

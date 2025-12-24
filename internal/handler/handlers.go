@@ -128,7 +128,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 			success := false
 			for i := 0; i < maxAttempts; i++ {
 				shortLink = GenerateRandomString(data.Conf)
-				err := data.Store.Set(shortLink, urlData.URL)
+				code, err := data.Store.Set(shortLink, urlData.URL)
 				if err != nil {
 					if errors.Is(err, repository.ErrorKeyExists) {
 						continue
@@ -138,6 +138,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 					}
 				} else {
 					success = true
+					shortLink = code
 					break
 				}
 			}
@@ -251,7 +252,7 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 
 	for i := 0; i < maxAttempts; i++ {
 		shortLink = GenerateRandomString(data.Conf)
-		err := data.Store.Set(shortLink, body)
+		code, err := data.Store.Set(shortLink, body)
 		if err != nil {
 			if errors.Is(err, repository.ErrorKeyExists) {
 				continue
@@ -261,6 +262,7 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 			}
 		} else {
 			success = true
+			shortLink = code
 			break
 		}
 	}
