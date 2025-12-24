@@ -7,7 +7,7 @@ type Config struct {
 	ShortLinkLength int
 	Charset         string
 	FileName        string
-	DbConfig        *db.Config
+	DBConfig        *db.Config
 }
 
 func NewConfig(serverAddress string, dsn string) *Config {
@@ -19,6 +19,6 @@ func NewConfig(serverAddress string, dsn string) *Config {
 		ServerAddress:   serverAddress,
 		ShortLinkLength: 6,
 		Charset:         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-		DbConfig:        db.NewConfig(dsn),
+		DBConfig:        db.NewConfig(dsn),
 	}
 }
