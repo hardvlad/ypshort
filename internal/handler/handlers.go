@@ -17,7 +17,7 @@ import (
 
 type Handlers struct {
 	Conf   *config.Config
-	Store  *repository.Storage
+	Store  repository.StorageInterface
 	Logger *zap.SugaredLogger
 }
 
@@ -93,7 +93,7 @@ func createPingDBHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
-func NewHandlers(conf *config.Config, store *repository.Storage, sugarLogger *zap.SugaredLogger) http.Handler {
+func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger) http.Handler {
 
 	mux := chi.NewRouter()
 
@@ -178,6 +178,9 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 		if err != nil {
 			if errors.Is(err, repository.ErrorKeyExists) {
 				continue
+			} else {
+				data.Logger.Debugw(err.Error(), "event", "добавление URL", body)
+				break
 			}
 		} else {
 			success = true

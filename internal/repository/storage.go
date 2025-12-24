@@ -10,6 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type StorageInterface interface {
+	Get(key string) (string, bool)
+	Set(key, value string) error
+}
+
 type Storage struct {
 	kvStorage   map[string]string
 	mu          sync.Mutex
