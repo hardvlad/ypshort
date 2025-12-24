@@ -17,17 +17,17 @@ func parseFlags() programFlags {
 	var flags programFlags
 
 	flag.StringVar(&flags.RunAddress, "a", ":8080", "адрес запуска HTTP-сервера")
-	if envRunAddr, exists := os.LookupEnv("BASE_URL"); exists {
+	if envRunAddr, ok := os.LookupEnv("BASE_URL"); ok {
 		flags.RunAddress = envRunAddr
 	}
 
 	flag.StringVar(&flags.ServerAddress, "b", "http://localhost:8080/", "базовый адрес результирующего сокращённого URL")
-	if envServAddr, exists := os.LookupEnv("SERVER_ADDRESS"); exists {
+	if envServAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		flags.ServerAddress = envServAddr
 	}
 
 	flag.StringVar(&flags.FileName, "f", "shortener_db.json", "файл данных сервиса")
-	if envFileName, exists := os.LookupEnv("FILE_STORAGE_PATH"); exists {
+	if envFileName, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		flags.FileName = envFileName
 	}
 

@@ -75,19 +75,22 @@ func (s *Storage) Set(key, value string) error {
 	}
 	s.kvStorage[key] = value
 
-	s.persistToFile()
+	err := s.persistToFile()
+	if err != nil {
+		s.sugarLogger.Errorw("ошибка записи в базу", "err", err.Error())
+	}
 
 	return nil
 }
 
-func (s *Storage) persistToFile() {
+func (s *Storage) persistToFile() error {
 	if s.fileName == "" {
-		return
+		return errors.New("файл базы не задан")
 	}
 
 	file, err := os.OpenFile(s.fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
-		return
+		return errors.New("не могу открыть файл для записи: " + s.fileName)
 	}
 	defer file.Close()
 
@@ -95,6 +98,7 @@ func (s *Storage) persistToFile() {
 	encoder := json.NewEncoder(file)
 	err = encoder.Encode(data)
 	if err != nil && s.sugarLogger != nil {
-		s.sugarLogger.Errorw(err.Error(), "event", "persist to file")
+		return fmt.Errorf("ошибка сериализации в базу %w: %s", err, s.fileName)
 	}
+	return nil
 }
