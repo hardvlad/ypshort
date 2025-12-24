@@ -50,24 +50,24 @@ func (s *Storage) GetCode(url string) (string, bool) {
 	return savedCode, true
 }
 
-func (s *Storage) Set(key, value string) (string, error) {
+func (s *Storage) Set(key, value string) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, exists := s.Get(key); exists {
-		return "", fmt.Errorf("%w: %s", repository.ErrorKeyExists, key)
+		return "", false, fmt.Errorf("%w: %s", repository.ErrorKeyExists, key)
 	}
 
 	_, err := s.DBConn.ExecContext(context.Background(), "INSERT INTO saved_links (code, url) VALUES ($1, $2)", key, value)
 	if err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
 			if code, exists := s.GetCode(value); exists {
-				return code, nil
+				return code, true, nil
 			}
 		} else {
 			fmt.Println("Error not PG %w", err)
 		}
-		return "", err
+		return "", false, err
 	}
-	return key, nil
+	return key, false, nil
 }

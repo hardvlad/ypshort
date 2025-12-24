@@ -128,7 +128,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 			success := false
 			for i := 0; i < maxAttempts; i++ {
 				shortLink = GenerateRandomString(data.Conf)
-				code, err := data.Store.Set(shortLink, urlData.URL)
+				code, _, err := data.Store.Set(shortLink, urlData.URL)
 				if err != nil {
 					if errors.Is(err, repository.ErrorKeyExists) {
 						continue
@@ -249,10 +249,11 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 	success := false
 	maxAttempts := 5
 	var shortLink string
+	var urlAlreadyExisted bool
 
 	for i := 0; i < maxAttempts; i++ {
 		shortLink = GenerateRandomString(data.Conf)
-		code, err := data.Store.Set(shortLink, body)
+		code, urlExisted, err := data.Store.Set(shortLink, body)
 		if err != nil {
 			if errors.Is(err, repository.ErrorKeyExists) {
 				continue
@@ -263,6 +264,7 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 		} else {
 			success = true
 			shortLink = code
+			urlAlreadyExisted = urlExisted
 			break
 		}
 	}
@@ -278,9 +280,17 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 	fullURL, err := url.JoinPath(data.Conf.ServerAddress, shortLink)
 	if err != nil {
 		return shortenerResponse{
-			isError: false,
+			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
+		}
+	}
+
+	if urlAlreadyExisted {
+		return shortenerResponse{
+			isError: false,
+			message: http.StatusText(http.StatusConflict),
+			code:    http.StatusConflict,
 		}
 	}
 
