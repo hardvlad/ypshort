@@ -112,7 +112,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
-		if req == nil || len(req) == 0 {
+		if len(req) == 0 {
 			writeResponse(w, r, shortenerResponse{
 				isError: true,
 				message: "please post correct JSON",
