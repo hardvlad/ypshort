@@ -16,11 +16,11 @@ type Storage struct {
 	logger *zap.SugaredLogger
 }
 
-func NewPGStorage(dbConn *sql.DB, logger *zap.SugaredLogger) Storage {
-	return Storage{DBConn: dbConn, logger: logger}
+func NewPGStorage(dbConn *sql.DB, logger *zap.SugaredLogger) *Storage {
+	return &Storage{DBConn: dbConn, logger: logger}
 }
 
-func (s Storage) Get(key string) (string, bool) {
+func (s *Storage) Get(key string) (string, bool) {
 	row := s.DBConn.QueryRowContext(context.Background(), "SELECT url from saved_links where code = $1 limit 1", key)
 
 	var savedURL string
@@ -32,7 +32,7 @@ func (s Storage) Get(key string) (string, bool) {
 	return savedURL, true
 }
 
-func (s Storage) Set(key, value string) error {
+func (s *Storage) Set(key, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

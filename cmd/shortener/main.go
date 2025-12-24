@@ -32,11 +32,10 @@ func main() {
 	db, err := conf.DBConfig.InitDB()
 	if err != nil {
 		sugarLogger.Infow(err.Error(), "storage", "DB недоступна, используем файловое/in-memory хранилище")
-		storage, err := repository.NewStorage(flags.FileName, sugarLogger)
+		store, err = repository.NewStorage(flags.FileName, sugarLogger)
 		if err != nil {
 			sugarLogger.Fatalw(err.Error(), "event", "init storage, file: "+flags.FileName)
 		}
-		store = storage
 	} else {
 		store = pg.NewPGStorage(db, sugarLogger)
 		defer db.Close()
