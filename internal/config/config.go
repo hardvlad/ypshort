@@ -4,6 +4,7 @@ type Config struct {
 	ServerAddress   string
 	ShortLinkLength int
 	Charset         string
+	FileName        string
 }
 
 func NewConfig(serverAddress string) *Config {

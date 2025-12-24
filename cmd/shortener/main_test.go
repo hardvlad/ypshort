@@ -39,7 +39,10 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
-	mux := handler.NewHandlers(config.NewConfig("http://localhost:8080/"), repository.NewStorage())
+	conf := config.NewConfig("http://localhost:8080/")
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
+	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -84,7 +87,9 @@ func TestAdd(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	mux := handler.NewHandlers(conf, repository.NewStorage())
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
+	mux := handler.NewHandlers(conf, storage)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -129,9 +134,11 @@ func TestExisting(t *testing.T) {
 	}
 
 	conf := config.NewConfig("http://localhost:8080/")
-	store := repository.NewStorage()
-	mux := handler.NewHandlers(conf, store)
-	store.Set(`xxxxxxxxxx`, "https://ya.ru")
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
+	mux := handler.NewHandlers(conf, storage)
+	err = storage.Set(`xxxxxxxxxx`, "https://ya.ru")
+	require.NoError(t, err)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -146,6 +153,53 @@ func TestExisting(t *testing.T) {
 			location := res.Header.Get("Location")
 			assert.Equal(t, test.want.response, location)
 			res.Body.Close()
+		})
+	}
+}
+
+func TestAddJson(t *testing.T) {
+	type want struct {
+		code        int
+		response    string
+		contentType string
+	}
+	tests := []struct {
+		name   string
+		method string
+		target string
+		body   string
+		want   want
+	}{
+		{
+			name:   "add test JSON #1",
+			method: http.MethodPost,
+			target: "/api/shorten",
+			body:   `{"url":"https://ya.ru"}`,
+			want: want{
+				code: 201,
+			},
+		},
+	}
+
+	conf := config.NewConfig("http://localhost:8080/")
+	storage, err := repository.NewStorage(conf.FileName, nil)
+	require.NoError(t, err)
+	mux := handler.NewHandlers(conf, storage)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(test.method, test.target, strings.NewReader(test.body))
+
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, request)
+
+			res := w.Result()
+			assert.Equal(t, test.want.code, res.StatusCode)
+
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			require.NoError(t, err)
+			assert.Contains(t, string(resBody), "http://localhost:8080/")
 		})
 	}
 }
