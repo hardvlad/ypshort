@@ -32,6 +32,16 @@ type URLRequest struct {
 	URL string `json:"url"`
 }
 
+type BatchURLRequest struct {
+	ID  string `json:"correlation_id"`
+	URL string `json:"original_url"`
+}
+
+type BatchURLResponseObject struct {
+	ID  string `json:"correlation_id"`
+	URL string `json:"short_url"`
+}
+
 func createPostHandler(data Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
@@ -87,6 +97,72 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
+func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var resp []BatchURLResponseObject
+
+		var req []BatchURLRequest
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&req); err != nil {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "can't decode JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		if req == nil || len(req) == 0 {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "please post correct JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		for _, urlData := range req {
+			maxAttempts := 5
+			var shortLink string
+
+			success := false
+			for i := 0; i < maxAttempts; i++ {
+				shortLink = GenerateRandomString(data.Conf)
+				err := data.Store.Set(shortLink, urlData.URL)
+				if err != nil {
+					if errors.Is(err, repository.ErrorKeyExists) {
+						continue
+					} else {
+						data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", urlData.URL)
+						break
+					}
+				} else {
+					success = true
+					break
+				}
+			}
+
+			if success {
+				fullURL, _ := url.JoinPath(data.Conf.ServerAddress, shortLink)
+				resp = append(resp, BatchURLResponseObject{ID: urlData.ID, URL: fullURL})
+			}
+		}
+
+		if len(resp) == 0 {
+			writeResponse(w, r, shortenerResponse{
+				isError: false,
+				message: "no data in response",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
 func createPingDBHandler(data Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, r, pingDB(data))
@@ -107,6 +183,7 @@ func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLo
 	mux.Get(`/{code}`, createGetHandler(handlersData))
 	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
 	mux.Get(`/ping`, createPingDBHandler(handlersData))
+	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
 
 	return mux
 }
@@ -179,7 +256,7 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 			if errors.Is(err, repository.ErrorKeyExists) {
 				continue
 			} else {
-				data.Logger.Debugw(err.Error(), "event", "добавление URL", body)
+				data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 				break
 			}
 		} else {

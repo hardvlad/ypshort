@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -26,7 +27,9 @@ func (s *Storage) Get(key string) (string, bool) {
 	var savedURL string
 	err := row.Scan(&savedURL)
 	if err != nil {
-		s.logger.Debugw(err.Error(), "event", "get from DB", key)
+		if !errors.Is(err, sql.ErrNoRows) {
+			s.logger.Debugw(err.Error(), "event", "get from DB", key)
+		}
 		return "", false
 	}
 	return savedURL, true
