@@ -15,6 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type DeleteChannelRequest struct {
+	UserID int
+	URLs   []string
+}
+
 type Handlers struct {
 	Conf   *config.Config
 	Store  repository.StorageInterface
@@ -226,14 +231,63 @@ func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLo
 		Logger: sugarLogger,
 	}
 
+	ch := make(chan DeleteChannelRequest, 100)
+	go deleteWorker(handlersData, ch)
+
 	mux.Post(`/`, createPostHandler(handlersData))
 	mux.Get(`/{code}`, createGetHandler(handlersData))
 	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
 	mux.Get(`/ping`, createPingDBHandler(handlersData))
 	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
 	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))
+	mux.Delete(`/api/user/urls`, createDeleteUserURLSHandler(handlersData, ch))
 
 	return mux
+}
+
+func createDeleteUserURLSHandler(data Handlers, ch chan DeleteChannelRequest) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var urlsToDelete []string
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&urlsToDelete); err != nil {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "can't decode JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		if len(urlsToDelete) == 0 {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "please post correct JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		userID, ok := r.Context().Value(UserIDKey).(int)
+		if !ok {
+			userID = 0
+		}
+
+		ch <- DeleteChannelRequest{
+			UserID: userID,
+			URLs:   urlsToDelete,
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func deleteWorker(data Handlers, ch chan DeleteChannelRequest) {
+	for req := range ch {
+		err := data.Store.DeleteURLs(req.URLs, req.UserID)
+		if err != nil {
+			data.Logger.Debugw(err.Error(), "event", "удаление URL", "user_id", req.UserID, "urls", req.URLs)
+		}
+	}
 }
 
 func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerResponse) {
@@ -276,7 +330,16 @@ func pingDB(data Handlers) shortenerResponse {
 }
 
 func processRedirect(data Handlers, path string) shortenerResponse {
-	if urlRedirect, ok := data.Store.Get(path); ok {
+	urlRedirect, isDeleted, ok := data.Store.Get(path)
+	if isDeleted {
+		return shortenerResponse{
+			isError: true,
+			message: "short link was deleted",
+			code:    http.StatusGone,
+		}
+	}
+
+	if ok {
 		return shortenerResponse{
 			isError:     false,
 			redirectURL: urlRedirect,

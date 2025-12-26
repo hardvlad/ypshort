@@ -1,0 +1,1 @@
+alter table saved_links drop column is_deleted;
