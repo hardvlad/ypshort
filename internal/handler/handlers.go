@@ -122,25 +122,9 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 		}
 
 		for _, urlData := range req {
-			maxAttempts := 5
-			var shortLink string
-
-			success := false
-			for i := 0; i < maxAttempts; i++ {
-				shortLink = GenerateRandomString(data.Conf)
-				code, _, err := data.Store.Set(shortLink, urlData.URL)
-				if err != nil {
-					if errors.Is(err, repository.ErrorKeyExists) {
-						continue
-					} else {
-						data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", urlData.URL)
-						break
-					}
-				} else {
-					success = true
-					shortLink = code
-					break
-				}
+			success, shortLink, _, err := GetShortCode(data, urlData.URL, 5)
+			if err != nil {
+				data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", urlData.URL)
 			}
 
 			if success {
@@ -245,28 +229,9 @@ func processRedirect(data Handlers, path string) shortenerResponse {
 }
 
 func processNewURL(data Handlers, body string) shortenerResponse {
-
-	success := false
-	maxAttempts := 5
-	var shortLink string
-	var urlAlreadyExisted bool
-
-	for i := 0; i < maxAttempts; i++ {
-		shortLink = GenerateRandomString(data.Conf)
-		code, urlExisted, err := data.Store.Set(shortLink, body)
-		if err != nil {
-			if errors.Is(err, repository.ErrorKeyExists) {
-				continue
-			} else {
-				data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
-				break
-			}
-		} else {
-			success = true
-			shortLink = code
-			urlAlreadyExisted = urlExisted
-			break
-		}
+	success, shortLink, urlAlreadyExisted, err := GetShortCode(data, body, 5)
+	if err != nil {
+		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}
 
 	if !success {
@@ -307,4 +272,28 @@ func GenerateRandomString(conf *config.Config) string {
 		b[i] = conf.Charset[rand.Intn(len(conf.Charset))]
 	}
 	return string(b[:])
+}
+
+func GetShortCode(data Handlers, body string, maxAttempts int) (success bool, code string, urlExisted bool, err error) {
+	success = false
+	var shortLink string
+	var urlAlreadyExisted bool
+
+	for i := 0; i < maxAttempts; i++ {
+		shortLink = GenerateRandomString(data.Conf)
+		code, urlExisted, err := data.Store.Set(shortLink, body)
+		if err != nil {
+			if errors.Is(err, repository.ErrorKeyExists) {
+				continue
+			} else {
+				return false, "", false, err
+			}
+		} else {
+			success = true
+			shortLink = code
+			urlAlreadyExisted = urlExisted
+			break
+		}
+	}
+	return success, shortLink, urlAlreadyExisted, err
 }

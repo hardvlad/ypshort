@@ -40,7 +40,7 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/", "")
+	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage, nil)
@@ -87,7 +87,7 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/", "")
+	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage, nil)
@@ -134,7 +134,7 @@ func TestExisting(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/", "")
+	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage, nil)
@@ -182,7 +182,7 @@ func TestAddJson(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/", "")
+	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage, nil)
@@ -229,7 +229,7 @@ func TestAddJsonBatch(t *testing.T) {
 		},
 	}
 
-	conf := config.NewConfig("http://localhost:8080/", "")
+	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage, nil)

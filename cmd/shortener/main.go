@@ -31,7 +31,7 @@ func main() {
 	sugarLogger := myLogger.Sugar()
 	sugarLogger.Infow("Старт сервера", "addr", flags.RunAddress)
 
-	conf := config.NewConfig(flags.ServerAddress, flags.Dsn)
+	conf := config.NewConfig(flags.ServerAddress, flags.Dsn, flags.Length)
 
 	var store repository.StorageInterface
 
@@ -55,7 +55,7 @@ func main() {
 			"file://./migrations",
 			"postgres", driver)
 		if err != nil {
-			sugarLogger.Fatalw(err.Error(), "event", "подготовка к миграции 2")
+			sugarLogger.Fatalw(err.Error(), "event", "создание объекта миграции")
 		}
 		err = m.Up()
 		if err != nil && !errors.Is(err, migrate.ErrNoChange) {

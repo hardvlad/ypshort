@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -10,6 +11,7 @@ type programFlags struct {
 	RunAddress    string
 	ServerAddress string
 	FileName      string
+	Length        int
 	Dsn           string
 }
 
@@ -20,6 +22,15 @@ func parseFlags() programFlags {
 	flag.StringVar(&flags.RunAddress, "a", ":8080", "адрес запуска HTTP-сервера")
 	if envRunAddr, ok := os.LookupEnv("BASE_URL"); ok {
 		flags.RunAddress = envRunAddr
+	}
+
+	flag.IntVar(&flags.Length, "l", 6, "длина сокращённой части URL")
+	if envLength, ok := os.LookupEnv("SHORT_LENGTH"); ok {
+		var err error
+		flags.Length, err = strconv.Atoi(envLength)
+		if err != nil {
+			flags.Length = 6
+		}
 	}
 
 	flag.StringVar(&flags.ServerAddress, "b", "http://localhost:8080/", "базовый адрес результирующего сокращённого URL")

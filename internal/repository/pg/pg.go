@@ -14,7 +14,7 @@ import (
 
 type Storage struct {
 	DBConn *sql.DB
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	logger *zap.SugaredLogger
 }
 
@@ -64,8 +64,6 @@ func (s *Storage) Set(key, value string) (string, bool, error) {
 			if code, exists := s.GetCode(value); exists {
 				return code, true, nil
 			}
-		} else {
-			fmt.Println("Error not PG %w", err)
 		}
 		return "", false, err
 	}
