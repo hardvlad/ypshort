@@ -1,0 +1,1 @@
+alter table saved_links add created_at timestamp not null default now();

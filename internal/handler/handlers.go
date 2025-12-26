@@ -10,13 +10,15 @@ import (
 
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"go.uber.org/zap"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type Handlers struct {
-	Conf  *config.Config
-	Store *repository.Storage
+	Conf   *config.Config
+	Store  repository.StorageInterface
+	Logger *zap.SugaredLogger
 }
 
 type shortenerResponse struct {
@@ -28,6 +30,16 @@ type shortenerResponse struct {
 
 type URLRequest struct {
 	URL string `json:"url"`
+}
+
+type BatchURLRequest struct {
+	ID  string `json:"correlation_id"`
+	URL string `json:"original_url"`
+}
+
+type BatchURLResponseObject struct {
+	ID  string `json:"correlation_id"`
+	URL string `json:"short_url"`
 }
 
 func createPostHandler(data Handlers) http.HandlerFunc {
@@ -85,18 +97,78 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
-func NewHandlers(conf *config.Config, store *repository.Storage) http.Handler {
+func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var resp []BatchURLResponseObject
+
+		var req []BatchURLRequest
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&req); err != nil {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "can't decode JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		if len(req) == 0 {
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: "please post correct JSON",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		for _, urlData := range req {
+			success, shortLink, _, err := GetShortCode(data, urlData.URL, 5)
+			if err != nil {
+				data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", urlData.URL)
+			}
+
+			if success {
+				fullURL, _ := url.JoinPath(data.Conf.ServerAddress, shortLink)
+				resp = append(resp, BatchURLResponseObject{ID: urlData.ID, URL: fullURL})
+			}
+		}
+
+		if len(resp) == 0 {
+			writeResponse(w, r, shortenerResponse{
+				isError: false,
+				message: "no data in response",
+				code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func createPingDBHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeResponse(w, r, pingDB(data))
+	}
+}
+
+func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger) http.Handler {
 
 	mux := chi.NewRouter()
 
 	handlersData := Handlers{
-		Conf:  conf,
-		Store: store,
+		Conf:   conf,
+		Store:  store,
+		Logger: sugarLogger,
 	}
 
 	mux.Post(`/`, createPostHandler(handlersData))
 	mux.Get(`/{code}`, createGetHandler(handlersData))
 	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
+	mux.Get(`/ping`, createPingDBHandler(handlersData))
+	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
 
 	return mux
 }
@@ -118,6 +190,28 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 	}
 }
 
+func pingDB(data Handlers) shortenerResponse {
+	database, err := data.Conf.DBConfig.InitDB()
+	if err != nil {
+		if data.Logger != nil {
+			data.Logger.Errorw(err.Error(), "event", "соединение с базой данных")
+		}
+		return shortenerResponse{
+			isError: false,
+			message: http.StatusText(http.StatusInternalServerError),
+			code:    http.StatusInternalServerError,
+		}
+	}
+
+	database.Close()
+
+	return shortenerResponse{
+		isError: false,
+		message: http.StatusText(http.StatusOK),
+		code:    http.StatusOK,
+	}
+}
+
 func processRedirect(data Handlers, path string) shortenerResponse {
 	if urlRedirect, ok := data.Store.Get(path); ok {
 		return shortenerResponse{
@@ -135,22 +229,9 @@ func processRedirect(data Handlers, path string) shortenerResponse {
 }
 
 func processNewURL(data Handlers, body string) shortenerResponse {
-
-	success := false
-	maxAttempts := 5
-	var shortLink string
-
-	for i := 0; i < maxAttempts; i++ {
-		shortLink = GenerateRandomString(data.Conf)
-		err := data.Store.Set(shortLink, body)
-		if err != nil {
-			if errors.Is(err, repository.ErrorKeyExists) {
-				continue
-			}
-		} else {
-			success = true
-			break
-		}
+	success, shortLink, urlAlreadyExisted, err := GetShortCode(data, body, 5)
+	if err != nil {
+		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}
 
 	if !success {
@@ -164,9 +245,17 @@ func processNewURL(data Handlers, body string) shortenerResponse {
 	fullURL, err := url.JoinPath(data.Conf.ServerAddress, shortLink)
 	if err != nil {
 		return shortenerResponse{
-			isError: false,
+			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
+		}
+	}
+
+	if urlAlreadyExisted {
+		return shortenerResponse{
+			isError: false,
+			message: fullURL,
+			code:    http.StatusConflict,
 		}
 	}
 
@@ -183,4 +272,28 @@ func GenerateRandomString(conf *config.Config) string {
 		b[i] = conf.Charset[rand.Intn(len(conf.Charset))]
 	}
 	return string(b[:])
+}
+
+func GetShortCode(data Handlers, body string, maxAttempts int) (success bool, code string, urlExisted bool, err error) {
+	success = false
+	var shortLink string
+	var urlAlreadyExisted bool
+
+	for i := 0; i < maxAttempts; i++ {
+		shortLink = GenerateRandomString(data.Conf)
+		code, urlExisted, err := data.Store.Set(shortLink, body)
+		if err != nil {
+			if errors.Is(err, repository.ErrorKeyExists) {
+				continue
+			} else {
+				return false, "", false, err
+			}
+		} else {
+			success = true
+			shortLink = code
+			urlAlreadyExisted = urlExisted
+			break
+		}
+	}
+	return success, shortLink, urlAlreadyExisted, err
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -10,6 +11,8 @@ type programFlags struct {
 	RunAddress    string
 	ServerAddress string
 	FileName      string
+	Length        int
+	Dsn           string
 }
 
 func parseFlags() programFlags {
@@ -21,6 +24,15 @@ func parseFlags() programFlags {
 		flags.RunAddress = envRunAddr
 	}
 
+	flag.IntVar(&flags.Length, "l", 6, "длина сокращённой части URL")
+	if envLength, ok := os.LookupEnv("SHORT_LENGTH"); ok {
+		var err error
+		flags.Length, err = strconv.Atoi(envLength)
+		if err != nil {
+			flags.Length = 6
+		}
+	}
+
 	flag.StringVar(&flags.ServerAddress, "b", "http://localhost:8080/", "базовый адрес результирующего сокращённого URL")
 	if envServAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		flags.ServerAddress = envServAddr
@@ -29,6 +41,11 @@ func parseFlags() programFlags {
 	flag.StringVar(&flags.FileName, "f", "shortener_db.json", "файл данных сервиса")
 	if envFileName, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		flags.FileName = envFileName
+	}
+
+	flag.StringVar(&flags.Dsn, "d", "", "строка подключения к базе данных")
+	if envDsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
+		flags.Dsn = envDsn
 	}
 
 	flag.Parse()
