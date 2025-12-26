@@ -79,6 +79,11 @@ func (s *Storage) GetUserData(userID int) (map[string]string, error) {
 		s.logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userID)
 		return nil, err
 	}
+
+	if rows.Err() != nil {
+		s.logger.Debugw(rows.Err().Error(), "event", "получение данных пользователя", "user_id", userID)
+		return nil, err
+	}
 	defer rows.Close()
 
 	userData := make(map[string]string)

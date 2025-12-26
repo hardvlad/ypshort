@@ -16,6 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type contextKey string
+
+const UserIDKey contextKey = "user_id"
+
 type compressWriter struct {
 	http.ResponseWriter
 	Writer        io.Writer
@@ -141,7 +145,7 @@ func AuthorizationMiddleware(next http.Handler, sugarLogger *zap.SugaredLogger, 
 			}
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", userID)
+		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 		if setCookie != "" {
 			http.SetCookie(w, &http.Cookie{
 				Name:  cookieName,

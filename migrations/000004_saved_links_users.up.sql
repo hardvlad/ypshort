@@ -3,4 +3,4 @@ create table users (
     created_at timestamp not null default now()
 );
 
-alter table saved_links add column user_id integer references users(id);
+alter table saved_links add column user_id integer references users(id) ON DELETE CASCADE;

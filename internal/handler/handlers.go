@@ -54,7 +54,7 @@ func createPostHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
-		userID, ok := r.Context().Value("user_id").(int)
+		userID, ok := r.Context().Value(UserIDKey).(int)
 		if !ok {
 			userID = 0
 		}
@@ -91,7 +91,7 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
-		userID, ok := r.Context().Value("user_id").(int)
+		userID, ok := r.Context().Value(UserIDKey).(int)
 		if !ok {
 			userID = 0
 		}
@@ -131,7 +131,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
-		userID, ok := r.Context().Value("user_id").(int)
+		userID, ok := r.Context().Value(UserIDKey).(int)
 		if !ok {
 			userID = 0
 		}
@@ -171,7 +171,7 @@ func createPingDBHandler(data Handlers) http.HandlerFunc {
 
 func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := r.Context().Value("user_id").(int)
+		userID, ok := r.Context().Value(UserIDKey).(int)
 		if !ok {
 			userID = 0
 		}
