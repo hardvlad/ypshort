@@ -54,7 +54,12 @@ func createPostHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
-		writeResponse(w, r, processNewURL(data, string(bodyBytes)))
+		userId, ok := r.Context().Value("user_id").(int)
+		if !ok {
+			userId = 0
+		}
+
+		writeResponse(w, r, processNewURL(data, string(bodyBytes), userId))
 	}
 }
 
@@ -86,7 +91,12 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
-		resp := processNewURL(data, req.URL)
+		userId, ok := r.Context().Value("user_id").(int)
+		if !ok {
+			userId = 0
+		}
+
+		resp := processNewURL(data, req.URL, userId)
 		if resp.isError {
 			writeResponse(w, r, resp)
 		} else {
@@ -121,8 +131,13 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 			return
 		}
 
+		userId, ok := r.Context().Value("user_id").(int)
+		if !ok {
+			userId = 0
+		}
+
 		for _, urlData := range req {
-			success, shortLink, _, err := GetShortCode(data, urlData.URL, 5)
+			success, shortLink, _, err := GetShortCode(data, urlData.URL, 5, userId)
 			if err != nil {
 				data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", urlData.URL)
 			}
@@ -154,6 +169,53 @@ func createPingDBHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
+func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userId, ok := r.Context().Value("user_id").(int)
+		if !ok {
+			userId = 0
+		}
+
+		userURLs, err := data.Store.GetUserData(userId)
+		if err != nil {
+			data.Logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userId)
+			writeResponse(w, r, shortenerResponse{
+				isError: true,
+				message: http.StatusText(http.StatusInternalServerError),
+				code:    http.StatusInternalServerError,
+			})
+			return
+		}
+
+		if len(userURLs) == 0 {
+			writeResponse(w, r, shortenerResponse{
+				isError: false,
+				message: "no URLs for this user",
+				code:    http.StatusNoContent,
+			})
+			return
+		}
+
+		type UserURLResponse struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}
+
+		var resp []UserURLResponse
+		for shortCode, originalURL := range userURLs {
+			fullURL, _ := url.JoinPath(data.Conf.ServerAddress, shortCode)
+			resp = append(resp, UserURLResponse{
+				ShortURL:    fullURL,
+				OriginalURL: originalURL,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
 func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger) http.Handler {
 
 	mux := chi.NewRouter()
@@ -168,7 +230,7 @@ func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLo
 	mux.Get(`/{code}`, createGetHandler(handlersData))
 	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
 	mux.Get(`/ping`, createPingDBHandler(handlersData))
-	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
+	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))
 
 	return mux
 }
@@ -228,8 +290,9 @@ func processRedirect(data Handlers, path string) shortenerResponse {
 	}
 }
 
-func processNewURL(data Handlers, body string) shortenerResponse {
-	success, shortLink, urlAlreadyExisted, err := GetShortCode(data, body, 5)
+func processNewURL(data Handlers, body string, userId int) shortenerResponse {
+
+	success, shortLink, urlAlreadyExisted, err := GetShortCode(data, body, 5, userId)
 	if err != nil {
 		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}
@@ -274,14 +337,14 @@ func GenerateRandomString(conf *config.Config) string {
 	return string(b[:])
 }
 
-func GetShortCode(data Handlers, body string, maxAttempts int) (success bool, code string, urlExisted bool, err error) {
+func GetShortCode(data Handlers, body string, maxAttempts int, userId int) (success bool, code string, urlExisted bool, err error) {
 	success = false
 	var shortLink string
 	var urlAlreadyExisted bool
 
 	for i := 0; i < maxAttempts; i++ {
 		shortLink = GenerateRandomString(data.Conf)
-		code, urlExisted, err := data.Store.Set(shortLink, body)
+		code, urlExisted, err := data.Store.Set(shortLink, body, userId)
 		if err != nil {
 			if errors.Is(err, repository.ErrorKeyExists) {
 				continue

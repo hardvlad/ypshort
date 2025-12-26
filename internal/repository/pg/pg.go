@@ -50,7 +50,7 @@ func (s *Storage) GetCode(url string) (string, bool) {
 	return savedCode, true
 }
 
-func (s *Storage) Set(key, value string) (string, bool, error) {
+func (s *Storage) Set(key, value string, userId int) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -58,7 +58,7 @@ func (s *Storage) Set(key, value string) (string, bool, error) {
 		return "", false, fmt.Errorf("%w: %s", repository.ErrorKeyExists, key)
 	}
 
-	_, err := s.DBConn.ExecContext(context.Background(), "INSERT INTO saved_links (code, url) VALUES ($1, $2)", key, value)
+	_, err := s.DBConn.ExecContext(context.Background(), "INSERT INTO saved_links (code, url, user_id) VALUES ($1, $2, $3)", key, value, userId)
 	if err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
 			if code, exists := s.GetCode(value); exists {
@@ -68,4 +68,26 @@ func (s *Storage) Set(key, value string) (string, bool, error) {
 		return "", false, err
 	}
 	return key, false, nil
+}
+
+func (s *Storage) GetUserData(userId int) (map[string]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows, err := s.DBConn.QueryContext(context.Background(), "SELECT code, url from saved_links where user_id = $1", userId)
+	if err != nil {
+		s.logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userId)
+		return nil, err
+	}
+	defer rows.Close()
+
+	userData := make(map[string]string)
+	for rows.Next() {
+		var code, url string
+		if err := rows.Scan(&code, &url); err != nil {
+			return nil, err
+		}
+		userData[code] = url
+	}
+	return userData, nil
 }

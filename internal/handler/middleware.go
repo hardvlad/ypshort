@@ -4,12 +4,15 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"compress/zlib"
+	"context"
+	"database/sql"
 	"io"
 	"net/http"
 	"slices"
 	"strings"
 
 	"github.com/andybalholm/brotli"
+	"github.com/hardvlad/ypshort/internal/auth"
 	"go.uber.org/zap"
 )
 
@@ -103,5 +106,49 @@ func RequestDecompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) 
 		defer reader.Close()
 		r.Header.Del("Content-Encoding")
 		next.ServeHTTP(w, r)
+	})
+}
+
+func AuthorizationMiddleware(next http.Handler, sugarLogger *zap.SugaredLogger, cookieName string, secretKey string, db *sql.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if cookieName == "" || secretKey == "" || db == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		setCookie := ""
+		userId := 0
+		c, err := r.Cookie(cookieName)
+		if err != nil {
+		} else {
+			uid, err := auth.GetUserID(c.Value, secretKey)
+			if err != nil {
+				sugarLogger.Errorw(err.Error(), "event", "парсинг токена из куки", "cookie", c.Value)
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+
+			userId = uid
+		}
+
+		if userId == 0 {
+			userId, setCookie, err = auth.CreateNewUser(db, secretKey)
+			if err != nil {
+				sugarLogger.Errorw(err.Error(), "event", "создание нового пользователя")
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		ctx := context.WithValue(r.Context(), "user_id", userId)
+		if setCookie != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:  cookieName,
+				Value: setCookie,
+			})
+		}
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

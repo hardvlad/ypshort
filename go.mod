@@ -5,6 +5,7 @@ go 1.24.11
 require (
 	github.com/andybalholm/brotli v1.2.0
 	github.com/go-chi/chi/v5 v5.2.3
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/lib/pq v1.10.9
