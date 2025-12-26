@@ -63,16 +63,20 @@ func main() {
 		}
 	}
 
-	err = server.StartServer(flags.RunAddress, logger.WithLogging(
-		handler.RequestDecompressHandle(
-			handler.ResponseCompressHandle(
-				handler.NewHandlers(conf, store, sugarLogger),
-				sugarLogger,
+	err = server.StartServer(flags.RunAddress,
+		logger.WithLogging(
+			handler.AuthorizationMiddleware(
+				handler.RequestDecompressHandle(
+					handler.ResponseCompressHandle(
+						handler.NewHandlers(conf, store, sugarLogger),
+						sugarLogger,
+					),
+					sugarLogger,
+				),
+				sugarLogger, conf.CookieName, conf.TokenSecret, db,
 			),
 			sugarLogger,
 		),
-		sugarLogger,
-	),
 	)
 
 	if err != nil {

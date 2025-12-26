@@ -138,7 +138,7 @@ func TestExisting(t *testing.T) {
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(conf, storage, nil)
-	_, _, err = storage.Set(`xxxxxxxxxx`, "https://ya.ru")
+	_, _, err = storage.Set(`xxxxxxxxxx`, "https://ya.ru", 0)
 	require.NoError(t, err)
 
 	for _, test := range tests {
