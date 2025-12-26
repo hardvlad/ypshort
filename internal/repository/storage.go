@@ -12,8 +12,8 @@ import (
 
 type StorageInterface interface {
 	Get(key string) (string, bool)
-	Set(key, value string, userId int) (string, bool, error)
-	GetUserData(userId int) (map[string]string, error)
+	Set(key, value string, userID int) (string, bool, error)
+	GetUserData(userID int) (map[string]string, error)
 }
 
 type Storage struct {
@@ -73,7 +73,7 @@ func (s *Storage) Get(key string) (string, bool) {
 
 var ErrorKeyExists = errors.New("key already exists")
 
-func (s *Storage) Set(key, value string, userId int) (string, bool, error) {
+func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.kvStorage[key]; exists {
@@ -109,6 +109,6 @@ func (s *Storage) persistToFile() error {
 	return nil
 }
 
-func (s *Storage) GetUserData(userId int) (map[string]string, error) {
+func (s *Storage) GetUserData(userID int) (map[string]string, error) {
 	return s.kvStorage, nil
 }
