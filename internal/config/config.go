@@ -8,6 +8,8 @@ type Config struct {
 	Charset         string
 	FileName        string
 	DBConfig        *db.Config
+	CookieName      string
+	TokenSecret     string
 }
 
 func NewConfig(serverAddress string, dsn string, length int) *Config {
@@ -20,5 +22,7 @@ func NewConfig(serverAddress string, dsn string, length int) *Config {
 		ShortLinkLength: length,
 		Charset:         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
 		DBConfig:        db.NewConfig(dsn),
+		CookieName:      "yp_short_token",
+		TokenSecret:     "superSecretKey",
 	}
 }

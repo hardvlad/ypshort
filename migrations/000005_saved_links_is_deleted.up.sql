@@ -1,0 +1,1 @@
+alter table saved_links add is_deleted bool default false;
