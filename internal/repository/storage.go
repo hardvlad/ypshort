@@ -11,8 +11,10 @@ import (
 )
 
 type StorageInterface interface {
-	Get(key string) (string, bool)
-	Set(key, value string) (string, bool, error)
+	Get(key string) (string, bool, bool)
+	Set(key, value string, userID int) (string, bool, error)
+	GetUserData(userID int) (map[string]string, error)
+	DeleteURLs(codes []string, userID int) error
 }
 
 type Storage struct {
@@ -20,6 +22,13 @@ type Storage struct {
 	mu          sync.Mutex
 	fileName    string
 	sugarLogger *zap.SugaredLogger
+}
+
+func (s *Storage) DeleteURLs(codes []string, userID int) error {
+	for _, code := range codes {
+		delete(s.kvStorage, code)
+	}
+	return nil
 }
 
 type JSONParseMap struct {
@@ -65,14 +74,14 @@ func makeEmptyStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage
 	}, nil
 }
 
-func (s *Storage) Get(key string) (string, bool) {
+func (s *Storage) Get(key string) (string, bool, bool) {
 	value, ok := s.kvStorage[key]
-	return value, ok
+	return value, false, ok
 }
 
 var ErrorKeyExists = errors.New("key already exists")
 
-func (s *Storage) Set(key, value string) (string, bool, error) {
+func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.kvStorage[key]; exists {
@@ -106,4 +115,8 @@ func (s *Storage) persistToFile() error {
 		return fmt.Errorf("ошибка сериализации в базу %w: %s", err, s.fileName)
 	}
 	return nil
+}
+
+func (s *Storage) GetUserData(userID int) (map[string]string, error) {
+	return s.kvStorage, nil
 }
