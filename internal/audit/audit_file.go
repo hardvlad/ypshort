@@ -3,13 +3,13 @@ package audit
 import "os"
 
 type AuditorFile struct {
-	Id       string
+	ID       string
 	FilePath string
 }
 
 func InitAuditFile(path string) *AuditorFile {
 	return &AuditorFile{
-		Id:       "auditFile",
+		ID:       "auditFile",
 		FilePath: path,
 	}
 }
@@ -19,7 +19,7 @@ func (s *AuditorFile) Update(data AuditorEvent) {
 }
 
 func (s *AuditorFile) getID() string {
-	return s.Id
+	return s.ID
 }
 
 func appendStringToFile(filePath string, data string) {

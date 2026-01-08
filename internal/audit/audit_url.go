@@ -6,13 +6,13 @@ import (
 )
 
 type AuditorURL struct {
-	Id  string
+	ID  string
 	URL string
 }
 
 func InitAuditURL(url string) *AuditorURL {
 	return &AuditorURL{
-		Id:  "auditURL",
+		ID:  "auditURL",
 		URL: url,
 	}
 }
@@ -22,7 +22,7 @@ func (s *AuditorURL) Update(data AuditorEvent) {
 }
 
 func (s *AuditorURL) getID() string {
-	return s.Id
+	return s.ID
 }
 
 func postDataToURL(URL string, data string) {

@@ -75,9 +75,9 @@ func createPostHandler(data Handlers, observer *audit.Event) http.HandlerFunc {
 
 func updateObserver(observer *audit.Event, action string, url string, userID int) {
 	if userID == 0 {
-		observer.Update(audit.AuditorEvent{Ts: time.Now().Unix(), Action: action, Url: url})
+		observer.Update(audit.AuditorEvent{TS: time.Now().Unix(), Action: action, URL: url})
 	} else {
-		observer.Update(audit.AuditorEvent{Ts: time.Now().Unix(), Action: "follow", UserId: strconv.Itoa(userID), Url: url})
+		observer.Update(audit.AuditorEvent{TS: time.Now().Unix(), Action: "follow", UserID: strconv.Itoa(userID), URL: url})
 	}
 }
 
