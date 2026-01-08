@@ -7,7 +7,10 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
+	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
 	"go.uber.org/zap"
@@ -47,7 +50,7 @@ type BatchURLResponseObject struct {
 	URL string `json:"short_url"`
 }
 
-func createPostHandler(data Handlers) http.HandlerFunc {
+func createPostHandler(data Handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -65,16 +68,35 @@ func createPostHandler(data Handlers) http.HandlerFunc {
 		}
 
 		writeResponse(w, r, processNewURL(data, string(bodyBytes), userID))
+
+		updateObserver(observer, "shorten", string(bodyBytes), userID)
 	}
 }
 
-func createGetHandler(data Handlers) http.HandlerFunc {
+func updateObserver(observer *audit.Event, action string, url string, userID int) {
+	if userID == 0 {
+		observer.Update(audit.AuditorEvent{TS: time.Now().Unix(), Action: action, URL: url})
+	} else {
+		observer.Update(audit.AuditorEvent{TS: time.Now().Unix(), Action: "follow", UserID: strconv.Itoa(userID), URL: url})
+	}
+}
+
+func createGetHandler(data Handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writeResponse(w, r, processRedirect(data, chi.URLParam(r, "code")))
+
+		userID, ok := r.Context().Value(UserIDKey).(int)
+		if !ok {
+			userID = 0
+		}
+
+		p := processRedirect(data, chi.URLParam(r, "code"))
+		writeResponse(w, r, p)
+
+		updateObserver(observer, "shorten", p.redirectURL, userID)
 	}
 }
 
-func createPostJSONHandler(data Handlers) http.HandlerFunc {
+func createPostJSONHandler(data Handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req URLRequest
 		dec := json.NewDecoder(r.Body)
@@ -109,6 +131,8 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 			w.WriteHeader(resp.code)
 			json.NewEncoder(w).Encode(map[string]string{"result": resp.message})
 		}
+
+		updateObserver(observer, "shorten", req.URL, userID)
 	}
 }
 
@@ -221,7 +245,7 @@ func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
-func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger) http.Handler {
+func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
 
 	mux := chi.NewRouter()
 
@@ -234,9 +258,9 @@ func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLo
 	ch := make(chan DeleteChannelRequest, 100)
 	go deleteWorker(handlersData, ch)
 
-	mux.Post(`/`, createPostHandler(handlersData))
-	mux.Get(`/{code}`, createGetHandler(handlersData))
-	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
+	mux.Post(`/`, createPostHandler(handlersData, observer))
+	mux.Get(`/{code}`, createGetHandler(handlersData, observer))
+	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData, observer))
 	mux.Get(`/ping`, createPingDBHandler(handlersData))
 	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
 	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))

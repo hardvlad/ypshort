@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/repository"
@@ -40,10 +41,12 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
+	observer := audit.InitObserver()
+
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage, nil)
+	mux := handler.NewHandlers(conf, storage, nil, observer)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -87,10 +90,12 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
+	observer := audit.InitObserver()
+
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage, nil)
+	mux := handler.NewHandlers(conf, storage, nil, observer)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -134,10 +139,12 @@ func TestExisting(t *testing.T) {
 		},
 	}
 
+	observer := audit.InitObserver()
+
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage, nil)
+	mux := handler.NewHandlers(conf, storage, nil, observer)
 	_, _, err = storage.Set(`xxxxxxxxxx`, "https://ya.ru", 0)
 	require.NoError(t, err)
 
@@ -182,10 +189,12 @@ func TestAddJson(t *testing.T) {
 		},
 	}
 
+	observer := audit.InitObserver()
+
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage, nil)
+	mux := handler.NewHandlers(conf, storage, nil, observer)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -229,10 +238,12 @@ func TestAddJsonBatch(t *testing.T) {
 		},
 	}
 
+	observer := audit.InitObserver()
+
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(conf, storage, nil)
+	mux := handler.NewHandlers(conf, storage, nil, observer)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
