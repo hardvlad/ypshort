@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/logger"
@@ -63,12 +64,23 @@ func main() {
 		}
 	}
 
+	observer := audit.InitObserver()
+	if flags.AuditFile != "" {
+		fileAuditor := audit.InitAuditFile(flags.AuditFile)
+		observer.Register(fileAuditor)
+	}
+
+	if flags.AuditURL != "" {
+		urlAuditor := audit.InitAuditURL(flags.AuditURL)
+		observer.Register(urlAuditor)
+	}
+
 	err = server.StartServer(flags.RunAddress,
 		logger.WithLogging(
 			handler.AuthorizationMiddleware(
 				handler.RequestDecompressHandle(
 					handler.ResponseCompressHandle(
-						handler.NewHandlers(conf, store, sugarLogger),
+						handler.NewHandlers(conf, store, sugarLogger, observer),
 						sugarLogger,
 					),
 					sugarLogger,
