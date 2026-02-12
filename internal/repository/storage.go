@@ -68,7 +68,7 @@ func NewStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, erro
 
 func makeEmptyStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
 	return &Storage{
-		kvStorage:   make(map[string]string),
+		kvStorage:   make(map[string]string, 1000),
 		fileName:    fileName,
 		sugarLogger: sugarLogger,
 	}, nil
