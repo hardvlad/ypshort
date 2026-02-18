@@ -11,6 +11,7 @@ import (
 	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/handler"
+	"github.com/hardvlad/ypshort/internal/logger"
 	"github.com/hardvlad/ypshort/internal/repository"
 )
 
@@ -18,9 +19,13 @@ func BenchmarkTestAdd(b *testing.B) {
 
 	observer := audit.InitObserver()
 
+	myLogger, _ := logger.InitLogger()
+	defer myLogger.Sync()
+	sugarLogger := myLogger.Sugar()
+
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
-	storage, _ := repository.NewStorage(conf.FileName, nil)
-	mux := handler.NewHandlers(conf, storage, nil, observer)
+	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
+	mux := handler.NewHandlers(conf, storage, sugarLogger, observer)
 
 	for i := 0; i < b.N; i++ {
 		domain := "https://" + getRandomString(8) + "/"
