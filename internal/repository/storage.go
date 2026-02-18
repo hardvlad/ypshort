@@ -109,7 +109,7 @@ func (s *Storage) periodicPersistLoop(d time.Duration) {
 			s.tryPersistLocked()
 
 		case <-s.persistCh:
-			//			time.Sleep(200 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 			s.tryPersistLocked()
 		}
 	}
