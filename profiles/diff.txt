@@ -1,0 +1,71 @@
+File: ___go_build_github_com_hardvlad_ypshort_cmd_shortener.exe
+Build ID: C:\Users\User\AppData\Local\JetBrains\GoLand2025.3\tmp\GoLand\___go_build_github_com_hardvlad_ypshort_cmd_shortener.exe2026-02-18 16:13:38.8749767 +0500 +05
+Type: inuse_space
+Time: 2026-02-18 14:19:02 +05
+Showing nodes accounting for -677.03kB, 7.11% of 9528.40kB total
+      flat  flat%   sum%        cum   cum%
+-1301.24kB 13.66% 13.66% -1301.24kB 13.66%  bytes.growSlice
+  618.49kB  6.49%  7.17%  -682.75kB  7.17%  encoding/json.mapEncoder.encode
+  516.76kB  5.42%  1.74%   516.76kB  5.42%  runtime.procresize
+  513.69kB  5.39%  3.65%   513.69kB  5.39%  golang.org/x/text/internal/language.map.init.1
+    -513kB  5.38%  1.73%     -513kB  5.38%  runtime.allocm
+  512.31kB  5.38%  3.64%   512.31kB  5.38%  net.newFD (inline)
+  512.05kB  5.37%  9.02%   512.05kB  5.37%  time.NewTicker
+ -512.05kB  5.37%  3.64%  -512.05kB  5.37%  github.com/hardvlad/ypshort/internal/handler.deleteWorker
+ -512.05kB  5.37%  1.73%  -512.05kB  5.37%  runtime.acquireSudog
+ -512.01kB  5.37%  7.11%  -512.01kB  5.37%  runtime.(*timers).addHeap
+         0     0%  7.11% -1301.24kB 13.66%  bytes.(*Buffer).Write
+         0     0%  7.11% -1301.24kB 13.66%  bytes.(*Buffer).grow
+         0     0%  7.11%  -682.75kB  7.17%  encoding/json.(*Encoder).Encode
+         0     0%  7.11%  -682.75kB  7.17%  encoding/json.(*encodeState).marshal
+         0     0%  7.11%  -682.75kB  7.17%  encoding/json.(*encodeState).reflectValue
+         0     0%  7.11% -1301.24kB 13.66%  encoding/json.stringEncoder
+         0     0%  7.11%  -682.75kB  7.17%  encoding/json.structEncoder.encode
+         0     0%  7.11% -1301.24kB 13.66%  github.com/go-chi/chi/v5.(*Mux).ServeHTTP
+         0     0%  7.11% -1301.24kB 13.66%  github.com/go-chi/chi/v5.(*Mux).routeHTTP
+         0     0%  7.11% -1301.24kB 13.66%  github.com/hardvlad/ypshort/internal/handler.GetShortCode
+         0     0%  7.11% -1301.24kB 13.66%  github.com/hardvlad/ypshort/internal/handler.NewHandlers.createPostJSONHandler.func3
+         0     0%  7.11% -1301.24kB 13.66%  github.com/hardvlad/ypshort/internal/handler.processNewURL
+         0     0%  7.11% -1301.24kB 13.66%  github.com/hardvlad/ypshort/internal/repository.(*Storage).Set
+         0     0%  7.11%  1130.55kB 11.87%  github.com/hardvlad/ypshort/internal/repository.(*Storage).periodicPersistLoop
+         0     0%  7.11%  -682.75kB  7.17%  github.com/hardvlad/ypshort/internal/repository.(*Storage).persistToFile
+         0     0%  7.11%   618.49kB  6.49%  github.com/hardvlad/ypshort/internal/repository.(*Storage).tryPersistLocked
+         0     0%  7.11%   512.31kB  5.38%  github.com/hardvlad/ypshort/internal/server.StartServer.func1
+         0     0%  7.11%   513.69kB  5.39%  golang.org/x/text/internal/language.init
+         0     0%  7.11% -1301.24kB 13.66%  main.main.AuthorizationMiddleware.func3
+         0     0%  7.11% -1301.24kB 13.66%  main.main.RequestDecompressHandle.func2
+         0     0%  7.11% -1301.24kB 13.66%  main.main.ResponseCompressHandle.func1
+         0     0%  7.11% -1301.24kB 13.66%  main.main.WithLogging.func4
+         0     0%  7.11%   512.31kB  5.38%  net.(*ListenConfig).Listen
+         0     0%  7.11%   512.31kB  5.38%  net.(*sysListener).listenMPTCP
+         0     0%  7.11%   512.31kB  5.38%  net.(*sysListener).listenTCP (inline)
+         0     0%  7.11%   512.31kB  5.38%  net.(*sysListener).listenTCPProto
+         0     0%  7.11%   512.31kB  5.38%  net.Listen
+         0     0%  7.11%   512.31kB  5.38%  net.internetSocket
+         0     0%  7.11%   512.31kB  5.38%  net.socket
+         0     0%  7.11%   512.31kB  5.38%  net/http.(*Server).ListenAndServe
+         0     0%  7.11% -1301.24kB 13.66%  net/http.(*conn).serve
+         0     0%  7.11% -1301.24kB 13.66%  net/http.HandlerFunc.ServeHTTP
+         0     0%  7.11%   512.31kB  5.38%  net/http.ListenAndServe (inline)
+         0     0%  7.11% -1301.24kB 13.66%  net/http.serverHandler.ServeHTTP
+         0     0%  7.11%  -512.01kB  5.37%  runtime.(*scavengerState).sleep
+         0     0%  7.11%  -512.01kB  5.37%  runtime.(*timer).maybeAdd
+         0     0%  7.11%  -512.01kB  5.37%  runtime.(*timer).modify
+         0     0%  7.11%  -512.01kB  5.37%  runtime.(*timer).reset (inline)
+         0     0%  7.11%  -512.01kB  5.37%  runtime.bgscavenge
+         0     0%  7.11%   513.69kB  5.39%  runtime.doInit (inline)
+         0     0%  7.11%   513.69kB  5.39%  runtime.doInit1
+         0     0%  7.11%  -512.05kB  5.37%  runtime.gcBgMarkWorker
+         0     0%  7.11%  -512.05kB  5.37%  runtime.gcMarkDone
+         0     0%  7.11%   513.69kB  5.39%  runtime.main
+         0     0%  7.11%     -513kB  5.38%  runtime.mcall
+         0     0%  7.11%     -513kB  5.38%  runtime.newm
+         0     0%  7.11%     -513kB  5.38%  runtime.park_m
+         0     0%  7.11%     -513kB  5.38%  runtime.resetspinning
+         0     0%  7.11%   516.76kB  5.42%  runtime.rt0_go
+         0     0%  7.11%   516.76kB  5.42%  runtime.schedinit
+         0     0%  7.11%     -513kB  5.38%  runtime.schedule
+         0     0%  7.11%  -512.05kB  5.37%  runtime.semacquire (inline)
+         0     0%  7.11%  -512.05kB  5.37%  runtime.semacquire1
+         0     0%  7.11%     -513kB  5.38%  runtime.startm
+         0     0%  7.11%     -513kB  5.38%  runtime.wakep

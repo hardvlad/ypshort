@@ -1,11 +1,14 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -15,6 +18,7 @@ type StorageInterface interface {
 	Set(key, value string, userID int) (string, bool, error)
 	GetUserData(userID int) (map[string]string, error)
 	DeleteURLs(codes []string, userID int) error
+	Close() error
 }
 
 type Storage struct {
@@ -22,6 +26,12 @@ type Storage struct {
 	mu          sync.Mutex
 	fileName    string
 	sugarLogger *zap.SugaredLogger
+
+	hasChanges atomic.Bool
+	persistCh  chan struct{}
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
 }
 
 func (s *Storage) DeleteURLs(codes []string, userID int) error {
@@ -36,41 +46,91 @@ type JSONParseMap struct {
 }
 
 func NewStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
+
+	var s *Storage
+	var err error
+
 	if fileName == "" {
-		return makeEmptyStorage(fileName, sugarLogger)
+		s, err = makeEmptyStorage(fileName, sugarLogger)
+	} else {
+		if _, err1 := os.Stat(fileName); errors.Is(err1, os.ErrNotExist) {
+			s, err = makeEmptyStorage(fileName, sugarLogger)
+		} else {
+			file, err1 := os.OpenFile(fileName, os.O_RDONLY|os.O_CREATE, 0666)
+			if err1 != nil {
+				return nil, fmt.Errorf("%w: %s", err1, fileName)
+			}
+			defer file.Close()
+
+			var data JSONParseMap
+			if err1 := json.NewDecoder(file).Decode(&data); err1 != nil {
+				return nil, err1
+			}
+
+			if data.Data != nil {
+				ctx, cancel := context.WithCancel(context.Background())
+				s, err = &Storage{
+					kvStorage:   data.Data,
+					fileName:    fileName,
+					sugarLogger: sugarLogger,
+					persistCh:   make(chan struct{}, 1),
+					ctx:         ctx,
+					cancel:      cancel,
+				}, nil
+			} else {
+				s, err = makeEmptyStorage(fileName, sugarLogger)
+			}
+		}
 	}
 
-	if _, err := os.Stat(fileName); errors.Is(err, os.ErrNotExist) {
-		return makeEmptyStorage(fileName, sugarLogger)
+	if err == nil && s != nil {
+		s.wg.Add(1)
+		go s.periodicPersistLoop(10 * time.Second)
 	}
 
-	file, err := os.OpenFile(fileName, os.O_RDONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", err, fileName)
-	}
-	defer file.Close()
-
-	var data JSONParseMap
-	if err := json.NewDecoder(file).Decode(&data); err != nil {
-		return nil, err
-	}
-
-	if data.Data != nil {
-		return &Storage{
-			kvStorage:   data.Data,
-			fileName:    fileName,
-			sugarLogger: sugarLogger,
-		}, nil
-	}
-
-	return makeEmptyStorage(fileName, sugarLogger)
+	return s, err
 }
 
+func (s *Storage) periodicPersistLoop(d time.Duration) {
+	defer s.wg.Done()
+
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			if s.hasChanges.Load() {
+				_ = s.persistToFile()
+			}
+			return
+
+		case <-ticker.C:
+			s.tryPersistLocked()
+
+		case <-s.persistCh:
+			time.Sleep(200 * time.Millisecond)
+			s.tryPersistLocked()
+		}
+	}
+}
+
+func (s *Storage) tryPersistLocked() {
+	if s.hasChanges.CompareAndSwap(true, false) {
+		if err := s.persistToFile(); err != nil {
+			s.sugarLogger.Errorw("ошибка записи в базу", "err", err.Error())
+		}
+	}
+}
 func makeEmptyStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Storage{
 		kvStorage:   make(map[string]string, 1000),
 		fileName:    fileName,
 		sugarLogger: sugarLogger,
+		persistCh:   make(chan struct{}, 1),
+		ctx:         ctx,
+		cancel:      cancel,
 	}, nil
 }
 
@@ -89,10 +149,7 @@ func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
 	}
 	s.kvStorage[key] = value
 
-	err := s.persistToFile()
-	if err != nil && s.sugarLogger != nil {
-		s.sugarLogger.Errorw("ошибка записи в базу", "err", err.Error())
-	}
+	s.hasChanges.Store(true)
 
 	return key, false, nil
 }
@@ -114,9 +171,16 @@ func (s *Storage) persistToFile() error {
 	if err != nil {
 		return fmt.Errorf("ошибка сериализации в базу %w: %s", err, s.fileName)
 	}
+
 	return nil
 }
 
 func (s *Storage) GetUserData(userID int) (map[string]string, error) {
 	return s.kvStorage, nil
+}
+
+func (s *Storage) Close() error {
+	s.cancel()
+	s.wg.Wait()
+	return nil
 }

@@ -1,4 +1,6 @@
-Write-Host "Running load test... (1000 requests)" -ForegroundColor Cyan
+$count = 5000;
+
+Write-Host "Running load test... ($count requests)" -ForegroundColor Cyan
 
 if (-not (Get-Command "curl" -ErrorAction SilentlyContinue)) {
     Write-Warning "curl NOT FOUND."
@@ -9,9 +11,9 @@ $parallelLimit = 50
 $jobs = @()
 $batchSize = $parallelLimit
 
-for ($i = 1; $i -le 1000; $i++) {
+for ($i = 1; $i -le $count; $i++) {
     while ((Get-Job -State Running).Count -ge $parallelLimit) {
-        Start-Sleep -Milliseconds 200
+        Start-Sleep -Milliseconds 10
     }
 
     $url = "https://example$i.com/path?q=$i"
@@ -34,4 +36,4 @@ Wait-Job -Job $jobs | Out-Null
 
 Remove-Job -Job $jobs
 
-Write-Host "Load sent. Done 1000 requests" -ForegroundColor Green
+Write-Host "Load sent. Done $count requests" -ForegroundColor Green

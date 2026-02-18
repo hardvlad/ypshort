@@ -1,0 +1,1 @@
+curl -s -X GET http://localhost:6060/debug/pprof/heap > result.pprof

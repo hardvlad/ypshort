@@ -120,3 +120,7 @@ func (s *Storage) DeleteURLs(codes []string, userID int) error {
 	}
 	return tx.Commit()
 }
+
+func (s *Storage) Close() error {
+	return s.DBConn.Close()
+}

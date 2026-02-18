@@ -64,6 +64,10 @@ func main() {
 		}
 	}
 
+	if store != nil {
+		defer store.Close()
+	}
+
 	observer := audit.InitObserver()
 	if flags.AuditFile != "" {
 		fileAuditor := audit.InitAuditFile(flags.AuditFile)
