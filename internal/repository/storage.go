@@ -151,6 +151,11 @@ func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
 
 	s.hasChanges.Store(true)
 
+	select {
+	case s.persistCh <- struct{}{}:
+	default:
+	}
+
 	return key, false, nil
 }
 
