@@ -1,3 +1,4 @@
+// Package auth contains authentication logic.
 package auth
 
 import (
@@ -7,11 +8,13 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// Claims contains user claims.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID int
 }
 
+// CreateToken creates a JWT token for the specified user ID.
 func CreateToken(tokenExpiration time.Duration, userID int, secretKey string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -28,6 +31,7 @@ func CreateToken(tokenExpiration time.Duration, userID int, secretKey string) (s
 	return tokenString, nil
 }
 
+// GetUserID returns the user ID from the specified JWT token.
 func GetUserID(tokenString string, secretKey string) (int, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
@@ -53,6 +57,7 @@ func GetUserID(tokenString string, secretKey string) (int, error) {
 	return claims.UserID, nil
 }
 
+// CreateNewUser creates a new user and returns the user ID and JWT token.
 func CreateNewUser(db *sql.DB, key string) (int, string, error) {
 	var userID int
 	err := db.QueryRow("INSERT INTO users (created_at) values (now()) RETURNING id").Scan(&userID)

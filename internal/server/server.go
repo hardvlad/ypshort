@@ -1,3 +1,4 @@
+// Package server contains the HTTP server start logic.
 package server
 
 import (

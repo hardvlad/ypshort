@@ -2,11 +2,13 @@ package audit
 
 import "os"
 
+// AuditorFile is an audit implementation that writes events to a file.
 type AuditorFile struct {
 	ID       string
 	FilePath string
 }
 
+// InitAuditFile creates a new AuditorFile object
 func InitAuditFile(path string) *AuditorFile {
 	return &AuditorFile{
 		ID:       "auditFile",
@@ -14,6 +16,7 @@ func InitAuditFile(path string) *AuditorFile {
 	}
 }
 
+// Update appends the event to the file.
 func (s *AuditorFile) Update(data AuditorEvent) {
 	appendStringToFile(s.FilePath, data.GetJSON())
 }

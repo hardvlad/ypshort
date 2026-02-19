@@ -5,11 +5,13 @@ import (
 	"strings"
 )
 
+// AuditorURL is an auditor that sends events to the specified URL.
 type AuditorURL struct {
 	ID  string
 	URL string
 }
 
+// InitAuditURL creates a new AuditorURL object
 func InitAuditURL(url string) *AuditorURL {
 	return &AuditorURL{
 		ID:  "auditURL",
@@ -17,6 +19,7 @@ func InitAuditURL(url string) *AuditorURL {
 	}
 }
 
+// Update appends the event to the URL.
 func (s *AuditorURL) Update(data AuditorEvent) {
 	go postDataToURL(s.URL, data.GetJSON())
 }

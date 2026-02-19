@@ -1,7 +1,9 @@
+// Package config creates a program configuration object.
 package config
 
 import "github.com/hardvlad/ypshort/internal/config/db"
 
+// Config contains program configuration.
 type Config struct {
 	ServerAddress   string
 	ShortLinkLength int
@@ -12,6 +14,7 @@ type Config struct {
 	TokenSecret     string
 }
 
+// NewConfig creates a new configuration object.
 func NewConfig(serverAddress string, dsn string, length int) *Config {
 	if serverAddress == "" {
 		serverAddress = "http://localhost:8080/"

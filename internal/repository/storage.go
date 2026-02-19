@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// StorageInterface defines methods for managing storage of key-value pairs and associated user data.
 type StorageInterface interface {
 	Get(key string) (string, bool, bool)
 	Set(key, value string, userID int) (string, bool, error)
@@ -21,6 +22,7 @@ type StorageInterface interface {
 	Close() error
 }
 
+// Storage represents a thread-safe key-value storage with persistent file support and context-based lifecycle management.
 type Storage struct {
 	kvStorage   map[string]string
 	mu          sync.Mutex
@@ -34,17 +36,14 @@ type Storage struct {
 	wg         sync.WaitGroup
 }
 
-func (s *Storage) DeleteURLs(codes []string, userID int) error {
-	for _, code := range codes {
-		delete(s.kvStorage, code)
-	}
-	return nil
-}
-
-type JSONParseMap struct {
+type jsonParseMap struct {
 	Data map[string]string `json:",unknown"`
 }
 
+// ErrorKeyExists indicates that an attempt was made to insert a duplicate key into the storage.
+var ErrorKeyExists = errors.New("key already exists")
+
+// NewStorage creates a new Storage instance with the specified file name and logger, managing persistence and lifecycle.
 func NewStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
 
 	var s *Storage
@@ -62,7 +61,7 @@ func NewStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, erro
 			}
 			defer file.Close()
 
-			var data JSONParseMap
+			var data jsonParseMap
 			if err1 := json.NewDecoder(file).Decode(&data); err1 != nil {
 				return nil, err1
 			}
@@ -89,6 +88,42 @@ func NewStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, erro
 	}
 
 	return s, err
+}
+
+// Get retrieves the value associated with the provided key and returns it along with two boolean flags.
+// The first boolean flag indicates if the value is invalid, while the second indicates if the key exists.
+func (s *Storage) Get(key string) (string, bool, bool) {
+	value, ok := s.kvStorage[key]
+	return value, false, ok
+}
+
+// Set attempts to store a key-value pair in the storage if the key does not already exist, ensuring thread-safety.
+func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.kvStorage[key]; exists {
+		return key, false, fmt.Errorf("%w: %s", ErrorKeyExists, key)
+	}
+	s.kvStorage[key] = value
+
+	// Mark that the data has been changed
+	s.hasChanges.Store(true)
+
+	// Send the change event to save data
+	select {
+	case s.persistCh <- struct{}{}:
+	default:
+	}
+
+	return key, false, nil
+}
+
+// DeleteURLs removes the specified list of URL codes from the storage associated with the given user ID.
+func (s *Storage) DeleteURLs(codes []string, userID int) error {
+	for _, code := range codes {
+		delete(s.kvStorage, code)
+	}
+	return nil
 }
 
 func (s *Storage) periodicPersistLoop(d time.Duration) {
@@ -122,6 +157,7 @@ func (s *Storage) tryPersistLocked() {
 		}
 	}
 }
+
 func makeEmptyStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Storage{
@@ -132,31 +168,6 @@ func makeEmptyStorage(fileName string, sugarLogger *zap.SugaredLogger) (*Storage
 		ctx:         ctx,
 		cancel:      cancel,
 	}, nil
-}
-
-func (s *Storage) Get(key string) (string, bool, bool) {
-	value, ok := s.kvStorage[key]
-	return value, false, ok
-}
-
-var ErrorKeyExists = errors.New("key already exists")
-
-func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, exists := s.kvStorage[key]; exists {
-		return key, false, fmt.Errorf("%w: %s", ErrorKeyExists, key)
-	}
-	s.kvStorage[key] = value
-
-	s.hasChanges.Store(true)
-
-	select {
-	case s.persistCh <- struct{}{}:
-	default:
-	}
-
-	return key, false, nil
 }
 
 func (s *Storage) persistToFile() error {
@@ -170,7 +181,7 @@ func (s *Storage) persistToFile() error {
 	}
 	defer file.Close()
 
-	data := JSONParseMap{Data: s.kvStorage}
+	data := jsonParseMap{Data: s.kvStorage}
 	encoder := json.NewEncoder(file)
 	err = encoder.Encode(data)
 	if err != nil {
