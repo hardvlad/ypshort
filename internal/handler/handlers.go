@@ -30,7 +30,7 @@ type handlers struct {
 	Logger *zap.SugaredLogger
 }
 
-type shortenerResponse struct {
+type ShortenerResponse struct {
 	isError     bool
 	message     string
 	redirectURL string
@@ -66,7 +66,7 @@ func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLo
 	go deleteWorker(handlersData, ch)
 
 	mux.Post(`/`, createPostHandler(handlersData, observer))
-	mux.Get(`/{code}`, createGetHandler(handlersData, observer))
+	mux.Get(`/{code}`, CreateGetHandler(handlersData, observer))
 	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData, observer))
 	mux.Get(`/ping`, createPingDBHandler(handlersData))
 	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
@@ -80,7 +80,7 @@ func createPostHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't read body",
 				code:    http.StatusBadRequest,
@@ -93,7 +93,7 @@ func createPostHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 			userID = 0
 		}
 
-		writeResponse(w, r, processNewURL(data, string(bodyBytes), userID))
+		writeResponse(w, r, ProcessNewURL(data, string(bodyBytes), userID))
 
 		updateObserver(observer, "shorten", string(bodyBytes), userID)
 	}
@@ -107,7 +107,7 @@ func updateObserver(observer *audit.Event, action string, url string, userID int
 	}
 }
 
-func createGetHandler(data handlers, observer *audit.Event) http.HandlerFunc {
+func CreateGetHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		userID, ok := r.Context().Value(UserIDKey).(int)
@@ -127,7 +127,7 @@ func createPostJSONHandler(data handlers, observer *audit.Event) http.HandlerFun
 		var req urlRequest
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't decode JSON",
 				code:    http.StatusBadRequest,
@@ -136,7 +136,7 @@ func createPostJSONHandler(data handlers, observer *audit.Event) http.HandlerFun
 		}
 
 		if req.URL == "" {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "please post URL in JSON",
 				code:    http.StatusBadRequest,
@@ -149,7 +149,7 @@ func createPostJSONHandler(data handlers, observer *audit.Event) http.HandlerFun
 			userID = 0
 		}
 
-		resp := processNewURL(data, req.URL, userID)
+		resp := ProcessNewURL(data, req.URL, userID)
 		if resp.isError {
 			writeResponse(w, r, resp)
 		} else {
@@ -169,7 +169,7 @@ func createPostJSONBatchHandler(data handlers) http.HandlerFunc {
 		var req []batchURLRequest
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't decode JSON",
 				code:    http.StatusBadRequest,
@@ -178,7 +178,7 @@ func createPostJSONBatchHandler(data handlers) http.HandlerFunc {
 		}
 
 		if len(req) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "please post correct JSON",
 				code:    http.StatusBadRequest,
@@ -204,7 +204,7 @@ func createPostJSONBatchHandler(data handlers) http.HandlerFunc {
 		}
 
 		if len(resp) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: false,
 				message: "no data in response",
 				code:    http.StatusBadRequest,
@@ -234,7 +234,7 @@ func createGetUserURLSHandler(data handlers) http.HandlerFunc {
 		userURLs, err := data.Store.GetUserData(userID)
 		if err != nil {
 			data.Logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userID)
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: http.StatusText(http.StatusInternalServerError),
 				code:    http.StatusInternalServerError,
@@ -243,7 +243,7 @@ func createGetUserURLSHandler(data handlers) http.HandlerFunc {
 		}
 
 		if len(userURLs) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: false,
 				message: "no URLs for this user",
 				code:    http.StatusNoContent,
@@ -276,7 +276,7 @@ func createDeleteUserURLSHandler(data handlers, ch chan deleteChannelRequest) ht
 		var urlsToDelete []string
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&urlsToDelete); err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't decode JSON",
 				code:    http.StatusBadRequest,
@@ -285,7 +285,7 @@ func createDeleteUserURLSHandler(data handlers, ch chan deleteChannelRequest) ht
 		}
 
 		if len(urlsToDelete) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "please post correct JSON",
 				code:    http.StatusBadRequest,
@@ -316,7 +316,7 @@ func deleteWorker(data handlers, ch chan deleteChannelRequest) {
 	}
 }
 
-func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerResponse) {
+func writeResponse(w http.ResponseWriter, r *http.Request, resp ShortenerResponse) {
 	if resp.isError {
 		http.Error(w, resp.message, resp.code)
 	} else {
@@ -333,13 +333,13 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 	}
 }
 
-func pingDB(data handlers) shortenerResponse {
+func pingDB(data handlers) ShortenerResponse {
 	database, err := data.Conf.DBConfig.InitDB()
 	if err != nil {
 		if data.Logger != nil {
 			data.Logger.Errorw(err.Error(), "event", "соединение с базой данных")
 		}
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: false,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
@@ -348,17 +348,17 @@ func pingDB(data handlers) shortenerResponse {
 
 	database.Close()
 
-	return shortenerResponse{
+	return ShortenerResponse{
 		isError: false,
 		message: http.StatusText(http.StatusOK),
 		code:    http.StatusOK,
 	}
 }
 
-func processRedirect(data handlers, path string) shortenerResponse {
+func processRedirect(data handlers, path string) ShortenerResponse {
 	urlRedirect, isDeleted, ok := data.Store.Get(path)
 	if isDeleted {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: true,
 			message: "short link was deleted",
 			code:    http.StatusGone,
@@ -366,21 +366,21 @@ func processRedirect(data handlers, path string) shortenerResponse {
 	}
 
 	if ok {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError:     false,
 			redirectURL: urlRedirect,
 			code:        http.StatusTemporaryRedirect,
 		}
 	}
 
-	return shortenerResponse{
+	return ShortenerResponse{
 		isError: true,
 		message: "short link does not exist",
 		code:    http.StatusBadRequest,
 	}
 }
 
-func processNewURL(data handlers, body string, userID int) shortenerResponse {
+func ProcessNewURL(data handlers, body string, userID int) ShortenerResponse {
 
 	success, shortLink, urlAlreadyExisted, err := getShortCode(data, body, 5, userID)
 	if err != nil {
@@ -388,7 +388,7 @@ func processNewURL(data handlers, body string, userID int) shortenerResponse {
 	}
 
 	if !success {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
@@ -397,7 +397,7 @@ func processNewURL(data handlers, body string, userID int) shortenerResponse {
 
 	fullURL, err := url.JoinPath(data.Conf.ServerAddress, shortLink)
 	if err != nil {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
@@ -405,14 +405,14 @@ func processNewURL(data handlers, body string, userID int) shortenerResponse {
 	}
 
 	if urlAlreadyExisted {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: false,
 			message: fullURL,
 			code:    http.StatusConflict,
 		}
 	}
 
-	return shortenerResponse{
+	return ShortenerResponse{
 		isError: false,
 		message: fullURL,
 		code:    http.StatusCreated,
