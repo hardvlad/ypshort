@@ -35,6 +35,7 @@ func ExampleProcessNewURL() {
 	res := w.Result()
 
 	fmt.Println(res.StatusCode)
+	res.Body.Close()
 
 	// Output:
 	// 201
