@@ -17,6 +17,8 @@ import (
 
 func BenchmarkTestAdd(b *testing.B) {
 
+	b.StopTimer()
+
 	observer := audit.InitObserver()
 
 	myLogger, _ := logger.InitLogger()
@@ -27,7 +29,9 @@ func BenchmarkTestAdd(b *testing.B) {
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
 	mux := handler.NewHandlers(conf, storage, sugarLogger, observer)
 
+	b.StartTimer()
 	for b.Loop() {
+		b.StopTimer()
 		domain := "https://" + getRandomString(8) + "/"
 		request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(domain))
 
@@ -38,6 +42,7 @@ func BenchmarkTestAdd(b *testing.B) {
 
 		res := w.Result()
 		res.Body.Close()
+		b.StartTimer()
 	}
 }
 
