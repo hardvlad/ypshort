@@ -27,12 +27,14 @@ func BenchmarkTestAdd(b *testing.B) {
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
 	mux := handler.NewHandlers(conf, storage, sugarLogger, observer)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		domain := "https://" + getRandomString(8) + "/"
 		request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(domain))
 
 		w := httptest.NewRecorder()
+		b.StartTimer()
 		mux.ServeHTTP(w, request)
+		b.StopTimer()
 
 		res := w.Result()
 		res.Body.Close()

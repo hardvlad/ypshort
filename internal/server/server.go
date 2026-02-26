@@ -10,12 +10,5 @@ func StartServer(addr string, mux http.Handler) error {
 	if addr == "" {
 		addr = ":8080"
 	}
-	/*
-		go func() {
-			err := http.ListenAndServe(":6060", nil)
-			if err != nil {
-			}
-		}()
-	*/
 	return http.ListenAndServe(addr, mux)
 }

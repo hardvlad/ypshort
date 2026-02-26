@@ -93,7 +93,8 @@ func TestAdd(t *testing.T) {
 
 	observer := audit.InitObserver()
 
-	myLogger, _ := logger.InitLogger()
+	myLogger, err := logger.InitLogger()
+	require.NoError(t, err)
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
@@ -146,7 +147,8 @@ func TestExisting(t *testing.T) {
 
 	observer := audit.InitObserver()
 
-	myLogger, _ := logger.InitLogger()
+	myLogger, err := logger.InitLogger()
+	require.NoError(t, err)
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
@@ -200,7 +202,8 @@ func TestAddJson(t *testing.T) {
 
 	observer := audit.InitObserver()
 
-	myLogger, _ := logger.InitLogger()
+	myLogger, err := logger.InitLogger()
+	require.NoError(t, err)
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
@@ -253,7 +256,8 @@ func TestAddJsonBatch(t *testing.T) {
 
 	observer := audit.InitObserver()
 
-	myLogger, _ := logger.InitLogger()
+	myLogger, err := logger.InitLogger()
+	require.NoError(t, err)
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 

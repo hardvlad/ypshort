@@ -3,6 +3,8 @@ package audit
 import (
 	"net/http"
 	"strings"
+
+	"github.com/hardvlad/ypshort/internal/retry"
 )
 
 // AuditorURL is an auditor that sends events to the specified URL.
@@ -29,9 +31,13 @@ func (s *AuditorURL) getID() string {
 }
 
 func postDataToURL(URL string, data string) {
-	post, err := http.Post(URL, "application/json; charset=utf-8", strings.NewReader(data))
+	post, err := retry.Retry(3, 2,
+		func() (*http.Response, error) {
+			return http.Post(URL, "application/json; charset=utf-8", strings.NewReader(data))
+		})
+
 	if err != nil {
 		return
 	}
-	defer post.Body.Close()
+	post.Body.Close()
 }

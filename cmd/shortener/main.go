@@ -70,8 +70,17 @@ func main() {
 
 	observer := audit.InitObserver()
 	if flags.AuditFile != "" {
-		fileAuditor := audit.InitAuditFile(flags.AuditFile)
+		fileAuditor, err := audit.InitAuditFile(flags.AuditFile)
+		if err != nil {
+			sugarLogger.Fatalw(err.Error(), "event", "файл аудита не открылся")
+		}
 		observer.Register(fileAuditor)
+		defer func(fileAuditor *audit.AuditorFile) {
+			err := fileAuditor.Close()
+			if err != nil {
+				sugarLogger.Debugw(err.Error(), "event", "ошибка закрытия файла аудита")
+			}
+		}(fileAuditor)
 	}
 
 	if flags.AuditURL != "" {

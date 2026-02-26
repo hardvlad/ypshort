@@ -1,6 +1,8 @@
 // Package audit contains logic to send events to the external storage
 package audit
 
+import "sync"
+
 type publisher interface {
 	Register(observer)
 	Deregister(observer)
@@ -16,6 +18,7 @@ type observer interface {
 type Event struct {
 	observers map[string]observer
 	data      AuditorEvent
+	mu        sync.Mutex
 }
 
 // InitObserver creates a new Event object
@@ -25,6 +28,9 @@ func InitObserver() *Event {
 
 // Register adds a new observer to the publisher
 func (e *Event) Register(o observer) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	if e.observers == nil {
 		e.observers = make(map[string]observer)
 	}
@@ -33,6 +39,9 @@ func (e *Event) Register(o observer) {
 
 // Deregister removes an observer from the publisher
 func (e *Event) Deregister(o observer) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	delete(e.observers, o.getID())
 }
 
