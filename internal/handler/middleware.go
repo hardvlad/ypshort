@@ -1,3 +1,4 @@
+// Package handler contains middlewares that help serve the requests
 package handler
 
 import (
@@ -18,6 +19,7 @@ import (
 
 type contextKey string
 
+// UserIDKey is a key for user ID in context.
 const UserIDKey contextKey = "user_id"
 
 type compressWriter struct {
@@ -27,6 +29,7 @@ type compressWriter struct {
 	setStatusCode int
 }
 
+// Write implements io.Writer interface and compresses response if needed
 func (w *compressWriter) Write(b []byte) (int, error) {
 	contentType := w.Header().Get("Content-Type")
 	if strings.Contains(contentType, "application/json") || strings.Contains(contentType, "text/html") {
@@ -38,10 +41,12 @@ func (w *compressWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+// WriteHeader implements http.ResponseWriter interface and intercepts status code from the response
 func (w *compressWriter) WriteHeader(statusCode int) {
 	w.setStatusCode = statusCode
 }
 
+// ResponseCompressHandle is a middleware that compresses the response if needed
 func ResponseCompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
@@ -76,6 +81,7 @@ func ResponseCompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) h
 	})
 }
 
+// RequestDecompressHandle is a middleware that decompresses the request if needed
 func RequestDecompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -113,6 +119,7 @@ func RequestDecompressHandle(next http.Handler, sugarLogger *zap.SugaredLogger) 
 	})
 }
 
+// AuthorizationMiddleware is a middleware that checks authorization
 func AuthorizationMiddleware(next http.Handler, sugarLogger *zap.SugaredLogger, cookieName string, secretKey string, db *sql.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

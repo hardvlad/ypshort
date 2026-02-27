@@ -1,3 +1,4 @@
+// Package pg provides PostgreSQL storage implementation.
 package pg
 
 import (
@@ -11,16 +12,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// Storage implements StorageInterface for PostgreSQL database.
 type Storage struct {
 	DBConn *sql.DB
 	mu     sync.RWMutex
 	logger *zap.SugaredLogger
 }
 
+// NewPGStorage creates a new Storage instance.
 func NewPGStorage(dbConn *sql.DB, logger *zap.SugaredLogger) *Storage {
 	return &Storage{DBConn: dbConn, logger: logger}
 }
 
+// Get returns a value by key from the storage.
 func (s *Storage) Get(key string) (string, bool, bool) {
 	row := s.DBConn.QueryRowContext(context.Background(), "SELECT url, is_deleted from saved_links where code = $1 limit 1", key)
 
@@ -36,6 +40,7 @@ func (s *Storage) Get(key string) (string, bool, bool) {
 	return savedURL, isDeleted, true
 }
 
+// GetCode returns a short code by URL from the storage.
 func (s *Storage) GetCode(url string) (string, bool) {
 	row := s.DBConn.QueryRowContext(context.Background(), "SELECT code from saved_links where url = $1 and is_deleted=false limit 1", url)
 
@@ -50,6 +55,7 @@ func (s *Storage) GetCode(url string) (string, bool) {
 	return savedCode, true
 }
 
+// Set saves a value with a key in the storage.
 func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -69,6 +75,7 @@ func (s *Storage) Set(key, value string, userID int) (string, bool, error) {
 	return key, false, nil
 }
 
+// GetUserData returns a map of short codes and URLs for the specified user ID.
 func (s *Storage) GetUserData(userID int) (map[string]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -96,6 +103,7 @@ func (s *Storage) GetUserData(userID int) (map[string]string, error) {
 	return userData, nil
 }
 
+// DeleteURLs deletes URLs by codes for the specified user ID.
 func (s *Storage) DeleteURLs(codes []string, userID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -119,4 +127,9 @@ func (s *Storage) DeleteURLs(codes []string, userID int) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// Close closes the storage connection.
+func (s *Storage) Close() error {
+	return s.DBConn.Close()
 }

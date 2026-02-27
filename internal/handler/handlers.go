@@ -1,3 +1,4 @@
+// Package handler creates handlers to handle incoming requests.
 package handler
 
 import (
@@ -7,7 +8,10 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
+	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
 	"go.uber.org/zap"
@@ -15,29 +19,29 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type DeleteChannelRequest struct {
+type deleteChannelRequest struct {
 	UserID int
 	URLs   []string
 }
 
-type Handlers struct {
+type handlers struct {
 	Conf   *config.Config
 	Store  repository.StorageInterface
 	Logger *zap.SugaredLogger
 }
 
-type shortenerResponse struct {
+type ShortenerResponse struct {
 	isError     bool
 	message     string
 	redirectURL string
 	code        int
 }
 
-type URLRequest struct {
+type urlRequest struct {
 	URL string `json:"url"`
 }
 
-type BatchURLRequest struct {
+type batchURLRequest struct {
 	ID  string `json:"correlation_id"`
 	URL string `json:"original_url"`
 }
@@ -47,11 +51,36 @@ type BatchURLResponseObject struct {
 	URL string `json:"short_url"`
 }
 
-func createPostHandler(data Handlers) http.HandlerFunc {
+// NewHandlers initializes and returns an HTTP handler with all defined routes and dependencies injected.
+func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
+
+	mux := chi.NewRouter()
+
+	handlersData := handlers{
+		Conf:   conf,
+		Store:  store,
+		Logger: sugarLogger,
+	}
+
+	ch := make(chan deleteChannelRequest, 100)
+	go deleteWorker(handlersData, ch)
+
+	mux.Post(`/`, createPostHandler(handlersData, observer))
+	mux.Get(`/{code}`, CreateGetHandler(handlersData, observer))
+	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData, observer))
+	mux.Get(`/ping`, createPingDBHandler(handlersData))
+	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
+	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))
+	mux.Delete(`/api/user/urls`, createDeleteUserURLSHandler(handlersData, ch))
+
+	return mux
+}
+
+func createPostHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't read body",
 				code:    http.StatusBadRequest,
@@ -64,22 +93,41 @@ func createPostHandler(data Handlers) http.HandlerFunc {
 			userID = 0
 		}
 
-		writeResponse(w, r, processNewURL(data, string(bodyBytes), userID))
+		writeResponse(w, r, ProcessNewURL(data, string(bodyBytes), userID))
+
+		updateObserver(observer, "shorten", string(bodyBytes), userID)
 	}
 }
 
-func createGetHandler(data Handlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeResponse(w, r, processRedirect(data, chi.URLParam(r, "code")))
+func updateObserver(observer *audit.Event, action string, url string, userID int) {
+	if userID == 0 {
+		observer.Update(audit.AuditorEvent{TS: time.Now().Unix(), Action: action, URL: url})
+	} else {
+		observer.Update(audit.AuditorEvent{TS: time.Now().Unix(), Action: "follow", UserID: strconv.Itoa(userID), URL: url})
 	}
 }
 
-func createPostJSONHandler(data Handlers) http.HandlerFunc {
+func CreateGetHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req URLRequest
+
+		userID, ok := r.Context().Value(UserIDKey).(int)
+		if !ok {
+			userID = 0
+		}
+
+		p := processRedirect(data, chi.URLParam(r, "code"))
+		writeResponse(w, r, p)
+
+		updateObserver(observer, "shorten", p.redirectURL, userID)
+	}
+}
+
+func createPostJSONHandler(data handlers, observer *audit.Event) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req urlRequest
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't decode JSON",
 				code:    http.StatusBadRequest,
@@ -88,7 +136,7 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 		}
 
 		if req.URL == "" {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "please post URL in JSON",
 				code:    http.StatusBadRequest,
@@ -101,7 +149,7 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 			userID = 0
 		}
 
-		resp := processNewURL(data, req.URL, userID)
+		resp := ProcessNewURL(data, req.URL, userID)
 		if resp.isError {
 			writeResponse(w, r, resp)
 		} else {
@@ -109,17 +157,19 @@ func createPostJSONHandler(data Handlers) http.HandlerFunc {
 			w.WriteHeader(resp.code)
 			json.NewEncoder(w).Encode(map[string]string{"result": resp.message})
 		}
+
+		updateObserver(observer, "shorten", req.URL, userID)
 	}
 }
 
-func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
+func createPostJSONBatchHandler(data handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var resp []BatchURLResponseObject
 
-		var req []BatchURLRequest
+		var req []batchURLRequest
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't decode JSON",
 				code:    http.StatusBadRequest,
@@ -128,7 +178,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 		}
 
 		if len(req) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "please post correct JSON",
 				code:    http.StatusBadRequest,
@@ -142,7 +192,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 		}
 
 		for _, urlData := range req {
-			success, shortLink, _, err := GetShortCode(data, urlData.URL, 5, userID)
+			success, shortLink, _, err := getShortCode(data, urlData.URL, 5, userID)
 			if err != nil {
 				data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", urlData.URL)
 			}
@@ -154,7 +204,7 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 		}
 
 		if len(resp) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: false,
 				message: "no data in response",
 				code:    http.StatusBadRequest,
@@ -168,13 +218,13 @@ func createPostJSONBatchHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
-func createPingDBHandler(data Handlers) http.HandlerFunc {
+func createPingDBHandler(data handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeResponse(w, r, pingDB(data))
 	}
 }
 
-func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
+func createGetUserURLSHandler(data handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := r.Context().Value(UserIDKey).(int)
 		if !ok {
@@ -184,7 +234,7 @@ func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
 		userURLs, err := data.Store.GetUserData(userID)
 		if err != nil {
 			data.Logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userID)
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: http.StatusText(http.StatusInternalServerError),
 				code:    http.StatusInternalServerError,
@@ -193,7 +243,7 @@ func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
 		}
 
 		if len(userURLs) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: false,
 				message: "no URLs for this user",
 				code:    http.StatusNoContent,
@@ -221,36 +271,12 @@ func createGetUserURLSHandler(data Handlers) http.HandlerFunc {
 	}
 }
 
-func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger) http.Handler {
-
-	mux := chi.NewRouter()
-
-	handlersData := Handlers{
-		Conf:   conf,
-		Store:  store,
-		Logger: sugarLogger,
-	}
-
-	ch := make(chan DeleteChannelRequest, 100)
-	go deleteWorker(handlersData, ch)
-
-	mux.Post(`/`, createPostHandler(handlersData))
-	mux.Get(`/{code}`, createGetHandler(handlersData))
-	mux.Post(`/api/shorten`, createPostJSONHandler(handlersData))
-	mux.Get(`/ping`, createPingDBHandler(handlersData))
-	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
-	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))
-	mux.Delete(`/api/user/urls`, createDeleteUserURLSHandler(handlersData, ch))
-
-	return mux
-}
-
-func createDeleteUserURLSHandler(data Handlers, ch chan DeleteChannelRequest) http.HandlerFunc {
+func createDeleteUserURLSHandler(data handlers, ch chan deleteChannelRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var urlsToDelete []string
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&urlsToDelete); err != nil {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "can't decode JSON",
 				code:    http.StatusBadRequest,
@@ -259,7 +285,7 @@ func createDeleteUserURLSHandler(data Handlers, ch chan DeleteChannelRequest) ht
 		}
 
 		if len(urlsToDelete) == 0 {
-			writeResponse(w, r, shortenerResponse{
+			writeResponse(w, r, ShortenerResponse{
 				isError: true,
 				message: "please post correct JSON",
 				code:    http.StatusBadRequest,
@@ -272,7 +298,7 @@ func createDeleteUserURLSHandler(data Handlers, ch chan DeleteChannelRequest) ht
 			userID = 0
 		}
 
-		ch <- DeleteChannelRequest{
+		ch <- deleteChannelRequest{
 			UserID: userID,
 			URLs:   urlsToDelete,
 		}
@@ -281,7 +307,7 @@ func createDeleteUserURLSHandler(data Handlers, ch chan DeleteChannelRequest) ht
 	}
 }
 
-func deleteWorker(data Handlers, ch chan DeleteChannelRequest) {
+func deleteWorker(data handlers, ch chan deleteChannelRequest) {
 	for req := range ch {
 		err := data.Store.DeleteURLs(req.URLs, req.UserID)
 		if err != nil {
@@ -290,7 +316,7 @@ func deleteWorker(data Handlers, ch chan DeleteChannelRequest) {
 	}
 }
 
-func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerResponse) {
+func writeResponse(w http.ResponseWriter, r *http.Request, resp ShortenerResponse) {
 	if resp.isError {
 		http.Error(w, resp.message, resp.code)
 	} else {
@@ -307,13 +333,13 @@ func writeResponse(w http.ResponseWriter, r *http.Request, resp shortenerRespons
 	}
 }
 
-func pingDB(data Handlers) shortenerResponse {
+func pingDB(data handlers) ShortenerResponse {
 	database, err := data.Conf.DBConfig.InitDB()
 	if err != nil {
 		if data.Logger != nil {
 			data.Logger.Errorw(err.Error(), "event", "соединение с базой данных")
 		}
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: false,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
@@ -322,17 +348,17 @@ func pingDB(data Handlers) shortenerResponse {
 
 	database.Close()
 
-	return shortenerResponse{
+	return ShortenerResponse{
 		isError: false,
 		message: http.StatusText(http.StatusOK),
 		code:    http.StatusOK,
 	}
 }
 
-func processRedirect(data Handlers, path string) shortenerResponse {
+func processRedirect(data handlers, path string) ShortenerResponse {
 	urlRedirect, isDeleted, ok := data.Store.Get(path)
 	if isDeleted {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: true,
 			message: "short link was deleted",
 			code:    http.StatusGone,
@@ -340,29 +366,29 @@ func processRedirect(data Handlers, path string) shortenerResponse {
 	}
 
 	if ok {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError:     false,
 			redirectURL: urlRedirect,
 			code:        http.StatusTemporaryRedirect,
 		}
 	}
 
-	return shortenerResponse{
+	return ShortenerResponse{
 		isError: true,
 		message: "short link does not exist",
 		code:    http.StatusBadRequest,
 	}
 }
 
-func processNewURL(data Handlers, body string, userID int) shortenerResponse {
+func ProcessNewURL(data handlers, body string, userID int) ShortenerResponse {
 
-	success, shortLink, urlAlreadyExisted, err := GetShortCode(data, body, 5, userID)
+	success, shortLink, urlAlreadyExisted, err := getShortCode(data, body, 5, userID)
 	if err != nil {
 		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}
 
 	if !success {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
@@ -371,7 +397,7 @@ func processNewURL(data Handlers, body string, userID int) shortenerResponse {
 
 	fullURL, err := url.JoinPath(data.Conf.ServerAddress, shortLink)
 	if err != nil {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
 			code:    http.StatusInternalServerError,
@@ -379,21 +405,21 @@ func processNewURL(data Handlers, body string, userID int) shortenerResponse {
 	}
 
 	if urlAlreadyExisted {
-		return shortenerResponse{
+		return ShortenerResponse{
 			isError: false,
 			message: fullURL,
 			code:    http.StatusConflict,
 		}
 	}
 
-	return shortenerResponse{
+	return ShortenerResponse{
 		isError: false,
 		message: fullURL,
 		code:    http.StatusCreated,
 	}
 }
 
-func GenerateRandomString(conf *config.Config) string {
+func generateRandomString(conf *config.Config) string {
 	b := make([]byte, conf.ShortLinkLength)
 	for i := 0; i < conf.ShortLinkLength; i++ {
 		b[i] = conf.Charset[rand.Intn(len(conf.Charset))]
@@ -401,13 +427,13 @@ func GenerateRandomString(conf *config.Config) string {
 	return string(b[:])
 }
 
-func GetShortCode(data Handlers, body string, maxAttempts int, userID int) (success bool, code string, urlExisted bool, err error) {
+func getShortCode(data handlers, body string, maxAttempts int, userID int) (success bool, code string, urlExisted bool, err error) {
 	success = false
 	var shortLink string
 	var urlAlreadyExisted bool
 
 	for i := 0; i < maxAttempts; i++ {
-		shortLink = GenerateRandomString(data.Conf)
+		shortLink = generateRandomString(data.Conf)
 		code, urlExisted, err := data.Store.Set(shortLink, body, userID)
 		if err != nil {
 			if errors.Is(err, repository.ErrorKeyExists) {

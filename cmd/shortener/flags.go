@@ -13,6 +13,8 @@ type programFlags struct {
 	FileName      string
 	Length        int
 	Dsn           string
+	AuditFile     string
+	AuditURL      string
 }
 
 func parseFlags() programFlags {
@@ -46,6 +48,16 @@ func parseFlags() programFlags {
 	flag.StringVar(&flags.Dsn, "d", "", "строка подключения к базе данных")
 	if envDsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		flags.Dsn = envDsn
+	}
+
+	flag.StringVar(&flags.AuditFile, "audit-file", "", "путь к файлу-приёмнику, в который сохраняются логи аудита")
+	if envAuditFile, ok := os.LookupEnv("AUDIT_FILE"); ok {
+		flags.AuditFile = envAuditFile
+	}
+
+	flag.StringVar(&flags.AuditURL, "audit-url", "", "полный URL удаленного сервера-приёмника, куда отправляются логи аудита")
+	if envAuditURL, ok := os.LookupEnv("AUDIT_FILE"); ok {
+		flags.AuditURL = envAuditURL
 	}
 
 	flag.Parse()

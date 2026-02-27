@@ -1,3 +1,4 @@
+// Package db creates connection to a database
 package db
 
 import (
@@ -7,16 +8,19 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// Config contains database connection parameters
 type Config struct {
 	Dsn string
 }
 
+// NewConfig creates a new Config object
 func NewConfig(dsn string) *Config {
 	return &Config{
 		Dsn: dsn,
 	}
 }
 
+// InitDB creates a new database connection
 func (c *Config) InitDB() (*sql.DB, error) {
 
 	if c.Dsn == "" {

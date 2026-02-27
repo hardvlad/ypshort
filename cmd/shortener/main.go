@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/logger"
@@ -63,12 +64,36 @@ func main() {
 		}
 	}
 
+	if store != nil {
+		defer store.Close()
+	}
+
+	observer := audit.InitObserver()
+	if flags.AuditFile != "" {
+		fileAuditor, err := audit.InitAuditFile(flags.AuditFile)
+		if err != nil {
+			sugarLogger.Fatalw(err.Error(), "event", "файл аудита не открылся")
+		}
+		observer.Register(fileAuditor)
+		defer func(fileAuditor *audit.AuditorFile) {
+			err := fileAuditor.Close()
+			if err != nil {
+				sugarLogger.Debugw(err.Error(), "event", "ошибка закрытия файла аудита")
+			}
+		}(fileAuditor)
+	}
+
+	if flags.AuditURL != "" {
+		urlAuditor := audit.InitAuditURL(flags.AuditURL)
+		observer.Register(urlAuditor)
+	}
+
 	err = server.StartServer(flags.RunAddress,
 		logger.WithLogging(
 			handler.AuthorizationMiddleware(
 				handler.RequestDecompressHandle(
 					handler.ResponseCompressHandle(
-						handler.NewHandlers(conf, store, sugarLogger),
+						handler.NewHandlers(conf, store, sugarLogger, observer),
 						sugarLogger,
 					),
 					sugarLogger,
