@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"fmt"
 	"os"
 	"sync"
 )
@@ -49,7 +50,7 @@ func (s *AuditorFile) Close() error {
 	if s.file != nil {
 		err := s.file.Close()
 		s.file = nil
-		return err
+		return fmt.Errorf("ошибка закрытия файла аудита: %w", err)
 	}
 	return nil
 }
