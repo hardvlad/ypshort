@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// generate:reset
 type programFlags struct {
 	RunAddress    string
 	ServerAddress string
