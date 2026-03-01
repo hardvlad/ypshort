@@ -6,13 +6,9 @@ import (
 	_ "net/http/pprof"
 )
 
-func StartServer(addr string, enableHTTPS bool, mux http.Handler) error {
-	if addr == "" {
-		addr = ":8080"
-	}
-
+func StartServer(enableHTTPS bool, srv *http.Server) error {
 	if enableHTTPS {
-		return http.ListenAndServeTLS(addr, "cert.pem", "key.pem", mux)
+		return srv.ListenAndServeTLS("cert.pem", "key.pem")
 	}
-	return http.ListenAndServe(addr, mux)
+	return srv.ListenAndServe()
 }
