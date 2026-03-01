@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"os"
 	"strconv"
@@ -17,6 +19,14 @@ type programFlags struct {
 	AuditFile     string
 	AuditURL      string
 	EnableHTTPS   bool
+}
+
+type jsonConfig struct {
+	ServerAddress   string `json:"server_address"`
+	BaseUrl         string `json:"base_url"`
+	FileStoragePath string `json:"file_storage_path"`
+	DatabaseDsn     string `json:"database_dsn"`
+	EnableHttps     string `json:"enable_https"`
 }
 
 func parseFlags() programFlags {
@@ -68,6 +78,46 @@ func parseFlags() programFlags {
 	}
 
 	flag.Parse()
+
+	jsonConfigFile := ""
+	flag.StringVar(&jsonConfigFile, "c", "", "имя файла конфигурации в формате JSON")
+	if envJSONConfig, ok := os.LookupEnv("CONFIG"); ok {
+		jsonConfigFile = envJSONConfig
+	}
+
+	if jsonConfigFile != "" {
+		var config jsonConfig
+
+		_, err := os.Stat(jsonConfigFile)
+
+		if !errors.Is(err, os.ErrNotExist) {
+			file, err := os.OpenFile(jsonConfigFile, os.O_RDONLY, 0x666)
+			if err == nil {
+				defer file.Close()
+				if err := json.NewDecoder(file).Decode(&config); err == nil {
+					if config.ServerAddress != "" && flags.RunAddress == "" {
+						flags.RunAddress = config.ServerAddress
+					}
+
+					if config.BaseUrl != "" && flags.ServerAddress == "" {
+						flags.ServerAddress = config.BaseUrl
+					}
+
+					if config.FileStoragePath != "" && flags.FileName == "" {
+						flags.FileName = config.FileStoragePath
+					}
+
+					if config.DatabaseDsn != "" && flags.Dsn == "" {
+						flags.Dsn = config.DatabaseDsn
+					}
+
+					if config.EnableHttps != "" && flags.EnableHTTPS == false {
+						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHttps)
+					}
+				}
+			}
+		}
+	}
 
 	if !strings.HasSuffix(flags.ServerAddress, "/") {
 		flags.ServerAddress += "/"
