@@ -16,6 +16,7 @@ type programFlags struct {
 	Dsn           string
 	AuditFile     string
 	AuditURL      string
+	EnableHTTPS   bool
 }
 
 func parseFlags() programFlags {
@@ -59,6 +60,11 @@ func parseFlags() programFlags {
 	flag.StringVar(&flags.AuditURL, "audit-url", "", "полный URL удаленного сервера-приёмника, куда отправляются логи аудита")
 	if envAuditURL, ok := os.LookupEnv("AUDIT_FILE"); ok {
 		flags.AuditURL = envAuditURL
+	}
+
+	flag.BoolVar(&flags.EnableHTTPS, "s", false, "запустить сервер с поддержкой HTTPS")
+	if _, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
+		flags.EnableHTTPS = true
 	}
 
 	flag.Parse()
