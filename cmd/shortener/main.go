@@ -90,7 +90,7 @@ func main() {
 		observer.Register(urlAuditor)
 	}
 
-	err = server.StartServer(flags.RunAddress,
+	err = server.StartServer(flags.RunAddress, flags.EnableHTTPS,
 		logger.WithLogging(
 			handler.AuthorizationMiddleware(
 				handler.RequestDecompressHandle(
