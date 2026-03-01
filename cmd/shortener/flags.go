@@ -23,10 +23,10 @@ type programFlags struct {
 
 type jsonConfig struct {
 	ServerAddress   string `json:"server_address"`
-	BaseURL         string `json:"base_url"`
+	BaseUrl         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDsn     string `json:"database_dsn"`
-	EnableHTTPS     string `json:"enable_https"`
+	EnableHttps     string `json:"enable_https"`
 }
 
 func parseFlags() programFlags {
@@ -90,7 +90,7 @@ func parseFlags() programFlags {
 
 		_, err := os.Stat(jsonConfigFile)
 
-		if err == nil || !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, os.ErrNotExist) {
 			file, err := os.OpenFile(jsonConfigFile, os.O_RDONLY, 0x666)
 			if err == nil {
 				defer file.Close()
@@ -99,8 +99,8 @@ func parseFlags() programFlags {
 						flags.RunAddress = config.ServerAddress
 					}
 
-					if config.BaseURL != "" && flags.ServerAddress == "" {
-						flags.ServerAddress = config.BaseURL
+					if config.BaseUrl != "" && flags.ServerAddress == "" {
+						flags.ServerAddress = config.BaseUrl
 					}
 
 					if config.FileStoragePath != "" && flags.FileName == "" {
@@ -111,8 +111,8 @@ func parseFlags() programFlags {
 						flags.Dsn = config.DatabaseDsn
 					}
 
-					if config.EnableHTTPS != "" && !flags.EnableHTTPS {
-						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHTTPS)
+					if config.EnableHttps != "" && flags.EnableHTTPS == false {
+						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHttps)
 					}
 				}
 			}
