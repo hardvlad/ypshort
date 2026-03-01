@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -52,7 +53,7 @@ type BatchURLResponseObject struct {
 }
 
 // NewHandlers initializes and returns an HTTP handler with all defined routes and dependencies injected.
-func NewHandlers(conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
+func NewHandlers(ctx context.Context, conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
 
 	mux := chi.NewRouter()
 
