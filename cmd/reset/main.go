@@ -153,7 +153,7 @@ func genResetMethod(buf *bytes.Buffer, st *structInfo) {
 		}
 	}
 
-	fmt.Fprintln(buf, "}\n")
+	fmt.Fprintln(buf, "}")
 }
 
 func exprToString(expr ast.Expr) string {
