@@ -23,7 +23,7 @@ type programFlags struct {
 
 type jsonConfig struct {
 	ServerAddress   string `json:"server_address"`
-	BaseUrl         string `json:"base_url"`
+	BaseURL         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDsn     string `json:"database_dsn"`
 	EnableHTTPS     string `json:"enable_https"`
@@ -99,8 +99,8 @@ func parseFlags() programFlags {
 						flags.RunAddress = config.ServerAddress
 					}
 
-					if config.BaseUrl != "" && flags.ServerAddress == "" {
-						flags.ServerAddress = config.BaseUrl
+					if config.BaseURL != "" && flags.ServerAddress == "" {
+						flags.ServerAddress = config.BaseURL
 					}
 
 					if config.FileStoragePath != "" && flags.FileName == "" {
@@ -111,7 +111,7 @@ func parseFlags() programFlags {
 						flags.Dsn = config.DatabaseDsn
 					}
 
-					if config.EnableHTTPS != "" && flags.EnableHTTPS == false {
+					if config.EnableHTTPS != "" && !flags.EnableHTTPS {
 						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHTTPS)
 					}
 				}
