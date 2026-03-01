@@ -26,7 +26,7 @@ type jsonConfig struct {
 	BaseUrl         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDsn     string `json:"database_dsn"`
-	EnableHttps     string `json:"enable_https"`
+	EnableHTTPS     string `json:"enable_https"`
 }
 
 func parseFlags() programFlags {
@@ -90,7 +90,7 @@ func parseFlags() programFlags {
 
 		_, err := os.Stat(jsonConfigFile)
 
-		if !errors.Is(err, os.ErrNotExist) {
+		if err == nil || !errors.Is(err, os.ErrNotExist) {
 			file, err := os.OpenFile(jsonConfigFile, os.O_RDONLY, 0x666)
 			if err == nil {
 				defer file.Close()
@@ -111,8 +111,8 @@ func parseFlags() programFlags {
 						flags.Dsn = config.DatabaseDsn
 					}
 
-					if config.EnableHttps != "" && flags.EnableHTTPS == false {
-						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHttps)
+					if config.EnableHTTPS != "" && flags.EnableHTTPS == false {
+						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHTTPS)
 					}
 				}
 			}
