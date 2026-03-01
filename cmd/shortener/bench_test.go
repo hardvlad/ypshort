@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +28,7 @@ func BenchmarkTestAdd(b *testing.B) {
 
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
-	mux := handler.NewHandlers(conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
 
 	b.StartTimer()
 	for b.Loop() {
