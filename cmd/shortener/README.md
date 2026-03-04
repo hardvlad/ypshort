@@ -30,3 +30,18 @@ Showing nodes accounting for `-677.03kB`, `7.11%` of 9528.40kB total
  -512.01kB  5.37%  7.11%  -512.01kB  5.37%  runtime.(*timers).addHeap
          0     0%  7.11% -1301.24kB 13.66%  bytes.(*Buffer).Write
 
+# Для передачи значений переменных сборки
+
+используйте команду 
+
+go build -ldflags \
+"-X main.buildVersion=v1.2.3 \
+-X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+-X main.buildCommit=$(git rev-parse HEAD)" \
+./cmd/shortener
+
+Или, например,
+
+go build -ldflags "-X main.buildVersion=v1.2.3 -X main.buildDate=04.03.2026 -X main.buildCommit=0a0b0c" ./cmd/shortener
+
+

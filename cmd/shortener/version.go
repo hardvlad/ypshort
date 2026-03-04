@@ -5,9 +5,9 @@ import (
 )
 
 var (
-	buildVersion string
-	buildDate    string
-	buildCommit  string
+	buildVersion string = "0.0"
+	buildDate    string = "01.01.1970"
+	buildCommit  string = "a0a0a0"
 )
 
 func printBuildInfo() {

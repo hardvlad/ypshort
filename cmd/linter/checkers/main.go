@@ -19,7 +19,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		ast.Inspect(file, func(n ast.Node) bool {
 			switch node := n.(type) {
 			case *ast.CallExpr:
-				if id, ok := getFuncName(node.Fun); ok {
+				if id, ok := getFuncName(pass, node.Fun); ok {
 					handleCall(pass, node, id)
 				}
 			}
@@ -30,13 +30,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // getFuncName извлекает имя функции (для вызова вида panic(...), log.Fatal(...), os.Exit(...))
-func getFuncName(fn ast.Expr) (string, bool) {
+func getFuncName(pass *analysis.Pass, fn ast.Expr) (string, bool) {
 	switch expr := fn.(type) {
 	case *ast.Ident:
 		return expr.Name, true
+
 	case *ast.SelectorExpr:
-		if x, ok := expr.X.(*ast.Ident); ok && x.Name != "" {
-			return x.Name + "." + expr.Sel.Name, true
+		if ident, ok := expr.X.(*ast.Ident); ok {
+			obj, ok := pass.TypesInfo.Uses[ident]
+			if !ok {
+				return "", false
+			}
+			if pkg := obj.Pkg(); pkg != nil {
+				return pkg.Name() + "." + expr.Sel.Name, true
+			}
+			return "", false
 		}
 	}
 	return "", false
@@ -71,24 +79,23 @@ func handleCall(pass *analysis.Pass, call *ast.CallExpr, funcID string) {
 
 // inMainFunc проверяет, находится ли вызов внутри функции func main()
 func inMainFunc(pass *analysis.Pass, node ast.Node) bool {
-	var currentFunc *ast.FuncDecl
+	for _, file := range pass.Files {
+		if !isInMainPackage(pass) {
+			continue
+		}
 
-	ast.Inspect(pass.Files[0], func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" &&
-			isInMainPackage(pass) {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name.Name != "main" || fn.Recv != nil {
+				continue
+			}
 
-			// Ищем, входит ли `node` в тело этой функции
-			for _, stmt := range fn.Body.List {
-				if containsNode(stmt, node) {
-					currentFunc = fn
-					return false
-				}
+			if containsNode(fn.Body, node) {
+				return true
 			}
 		}
-		return true
-	})
-
-	return currentFunc != nil
+	}
+	return false
 }
 
 // isInMainPackage — проверка: пакет называется main

@@ -20,7 +20,9 @@ func New[T Resettable](f func() T) *Pool[T] {
 
 func (p *Pool[T]) Get() T {
 	v := p.pool.Get()
-	return v.(T)
+	obj := v.(T)
+	obj.Reset()
+	return obj
 }
 
 func (p *Pool[T]) Put(obj T) {

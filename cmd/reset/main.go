@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +21,7 @@ func main() {
 
 	pkgs, err := collectPackages(root)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	for _, pkg := range pkgs {
