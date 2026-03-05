@@ -46,7 +46,7 @@ func main() {
 
 		outPath := filepath.Join(pkg.Dir, "reset.gen.go")
 		if err = os.WriteFile(outPath, buf.Bytes(), 0644); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 }
