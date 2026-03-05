@@ -143,13 +143,13 @@ func main() {
 	}()
 
 	// старт сервера на адресе
-	err = server.StartServer(flags.EnableHTTPS, srv)
+	err = server.StartServer(flags.EnableHTTPS, flags.SSLCertPath, flags.SSLKeyPath, srv)
 
-	<-idleConnsClosed
-
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		sugarLogger.Infow(err.Error(), "event", "start server")
 	}
+
+	<-idleConnsClosed
 
 	sugarLogger.Infow("HTTP сервер остановлен")
 }

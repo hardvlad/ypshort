@@ -19,6 +19,8 @@ type programFlags struct {
 	AuditFile     string
 	AuditURL      string
 	EnableHTTPS   bool
+	SSLCertPath   string
+	SSLKeyPath    string
 }
 
 type jsonConfig struct {
@@ -27,6 +29,8 @@ type jsonConfig struct {
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDsn     string `json:"database_dsn"`
 	EnableHTTPS     string `json:"enable_https"`
+	SSLCertificate  string `json:"ssl_certificate"`
+	SSLPrivateKey   string `json:"ssl_private_key"`
 }
 
 func parseFlags() programFlags {
@@ -77,13 +81,23 @@ func parseFlags() programFlags {
 		flags.EnableHTTPS = true
 	}
 
-	flag.Parse()
+	flag.StringVar(&flags.SSLCertPath, "sc", "", "путь к HTTPS сертификату")
+	if sslCert, ok := os.LookupEnv("HTTPS_CERT"); ok {
+		flags.SSLCertPath = sslCert
+	}
+
+	flag.StringVar(&flags.SSLKeyPath, "sk", "", "путь к HTTPS приватному ключу")
+	if sslKey, ok := os.LookupEnv("HTTPS_KEY"); ok {
+		flags.SSLKeyPath = sslKey
+	}
 
 	jsonConfigFile := ""
 	flag.StringVar(&jsonConfigFile, "c", "", "имя файла конфигурации в формате JSON")
 	if envJSONConfig, ok := os.LookupEnv("CONFIG"); ok {
 		jsonConfigFile = envJSONConfig
 	}
+
+	flag.Parse()
 
 	if jsonConfigFile != "" {
 		var config jsonConfig
@@ -113,6 +127,14 @@ func parseFlags() programFlags {
 
 					if config.EnableHTTPS != "" && !flags.EnableHTTPS {
 						flags.EnableHTTPS, _ = strconv.ParseBool(config.EnableHTTPS)
+					}
+
+					if config.SSLCertificate != "" && flags.SSLCertPath == "" {
+						flags.SSLCertPath = config.SSLCertificate
+					}
+
+					if config.SSLPrivateKey != "" && flags.SSLKeyPath == "" {
+						flags.SSLKeyPath = config.SSLPrivateKey
 					}
 				}
 			}

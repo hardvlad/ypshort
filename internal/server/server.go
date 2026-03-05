@@ -6,9 +6,9 @@ import (
 	_ "net/http/pprof"
 )
 
-func StartServer(enableHTTPS bool, srv *http.Server) error {
+func StartServer(enableHTTPS bool, certFile string, keyFile string, srv *http.Server) error {
 	if enableHTTPS {
-		return srv.ListenAndServeTLS("cert.pem", "key.pem")
+		return srv.ListenAndServeTLS(certFile, keyFile)
 	}
 	return srv.ListenAndServe()
 }
