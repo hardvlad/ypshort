@@ -20,6 +20,8 @@ import (
 
 func main() {
 
+	printBuildInfo()
+
 	myLogger, err := logger.InitLogger()
 	if err != nil {
 		log.Fatal(err)
