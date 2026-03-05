@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
@@ -90,23 +96,60 @@ func main() {
 		observer.Register(urlAuditor)
 	}
 
-	err = server.StartServer(flags.RunAddress,
-		logger.WithLogging(
-			handler.AuthorizationMiddleware(
-				handler.RequestDecompressHandle(
-					handler.ResponseCompressHandle(
-						handler.NewHandlers(conf, store, sugarLogger, observer),
-						sugarLogger,
-					),
+	ctx, cancel := context.WithCancel(context.Background())
+	idleConnsClosed := make(chan struct{})
+
+	mux := logger.WithLogging(
+		handler.AuthorizationMiddleware(
+			handler.RequestDecompressHandle(
+				handler.ResponseCompressHandle(
+					handler.NewHandlers(ctx, conf, store, sugarLogger, observer),
 					sugarLogger,
 				),
-				sugarLogger, conf.CookieName, conf.TokenSecret, db,
+				sugarLogger,
 			),
-			sugarLogger,
+			sugarLogger, conf.CookieName, conf.TokenSecret, db,
 		),
+		sugarLogger,
 	)
 
-	if err != nil {
-		sugarLogger.Fatalw(err.Error(), "event", "start server")
+	addr := flags.RunAddress
+	if addr == "" {
+		addr = ":8080"
 	}
+
+	// создание HTTP сервера
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
+	}
+
+	go func() {
+		c := make(chan os.Signal, 2)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+		<-c
+
+		sugarLogger.Infow("Завершение работы сервиса")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			sugarLogger.Debugw(err.Error(), "event", "shutdown server")
+		}
+
+		cancel()
+		sugarLogger.Infow("Завершение работы сервиса 2")
+		close(idleConnsClosed)
+	}()
+
+	// старт сервера на адресе
+	err = server.StartServer(flags.EnableHTTPS, flags.SSLCertPath, flags.SSLKeyPath, srv)
+
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		sugarLogger.Infow(err.Error(), "event", "start server")
+	}
+
+	<-idleConnsClosed
+
+	sugarLogger.Infow("HTTP сервер остановлен")
 }

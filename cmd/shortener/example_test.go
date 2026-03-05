@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +23,7 @@ func ExampleProcessNewURL() {
 
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
-	mux := handler.NewHandlers(conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()
@@ -50,7 +51,7 @@ func ExampleCreateGetHandler() {
 
 	conf := config.NewConfig("http://localhost:8080/", "", 6)
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
-	mux := handler.NewHandlers(conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
 
 	_, _, _ = storage.Set(`zzzzzzzzzzz`, "https://baha.com", 0)
 
