@@ -44,7 +44,6 @@ func main() {
 	flags := parseFlags()
 
 	sugarLogger := myLogger.Sugar()
-	sugarLogger.Infow("Старт сервера", "addr", flags.RunAddress)
 
 	conf := config.NewConfig(flags.ServerAddress, flags.Dsn, flags.Length, flags.TrustedSubnet)
 
@@ -152,8 +151,10 @@ func main() {
 
 	grpcAddr := flags.GRPCAddress
 	if grpcAddr == "" {
-		grpcAddr = ":8090"
+		grpcAddr = "127.0.0.1:8090"
 	}
+
+	sugarLogger.Infow("Старт gRPC сервера", "addr", grpcAddr)
 
 	grpcListener, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
@@ -171,6 +172,8 @@ func main() {
 			sugarLogger.Fatalw(err.Error(), "event", "gRPC сервер не запустился")
 		}
 	}()
+
+	sugarLogger.Infow("Старт сервера", "addr", addr)
 
 	// старт сервера на адресе
 	err = server.StartServer(flags.EnableHTTPS, flags.SSLCertPath, flags.SSLKeyPath, srv)
