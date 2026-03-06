@@ -21,6 +21,7 @@ type programFlags struct {
 	EnableHTTPS   bool
 	SSLCertPath   string
 	SSLKeyPath    string
+	TrustedSubnet string
 }
 
 type jsonConfig struct {
@@ -31,6 +32,7 @@ type jsonConfig struct {
 	EnableHTTPS     string `json:"enable_https"`
 	SSLCertificate  string `json:"ssl_certificate"`
 	SSLPrivateKey   string `json:"ssl_private_key"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 func parseFlags() programFlags {
@@ -91,6 +93,11 @@ func parseFlags() programFlags {
 		flags.SSLKeyPath = sslKey
 	}
 
+	flag.StringVar(&flags.TrustedSubnet, "t", "", "доверенная подсеть")
+	if trustedSubnet, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
+		flags.TrustedSubnet = trustedSubnet
+	}
+
 	jsonConfigFile := ""
 	flag.StringVar(&jsonConfigFile, "c", "", "имя файла конфигурации в формате JSON")
 	if envJSONConfig, ok := os.LookupEnv("CONFIG"); ok {
@@ -135,6 +142,10 @@ func parseFlags() programFlags {
 
 					if config.SSLPrivateKey != "" && flags.SSLKeyPath == "" {
 						flags.SSLKeyPath = config.SSLPrivateKey
+					}
+
+					if config.TrustedSubnet != "" && flags.TrustedSubnet == "" {
+						flags.TrustedSubnet = config.TrustedSubnet
 					}
 				}
 			}

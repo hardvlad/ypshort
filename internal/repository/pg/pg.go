@@ -133,3 +133,27 @@ func (s *Storage) DeleteURLs(codes []string, userID int) error {
 func (s *Storage) Close() error {
 	return s.DBConn.Close()
 }
+
+func (s *Storage) GetURLsCount() (int, error) {
+	row := s.DBConn.QueryRowContext(context.Background(), "SELECT count(*) from saved_links where is_deleted=false")
+
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		s.logger.Debugw(err.Error(), "event", "получение количества URL")
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *Storage) GetUsersCount() (int, error) {
+	row := s.DBConn.QueryRowContext(context.Background(), "SELECT count(*) from users")
+
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		s.logger.Debugw(err.Error(), "event", "получение количества пользователей")
+		return 0, err
+	}
+	return count, nil
+}

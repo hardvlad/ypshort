@@ -20,6 +20,8 @@ type StorageInterface interface {
 	GetUserData(userID int) (map[string]string, error)
 	DeleteURLs(codes []string, userID int) error
 	Close() error
+	GetURLsCount() (int, error)
+	GetUsersCount() (int, error)
 }
 
 // Storage represents a thread-safe key-value storage with persistent file support and context-based lifecycle management.
@@ -199,4 +201,12 @@ func (s *Storage) Close() error {
 	s.cancel()
 	s.wg.Wait()
 	return nil
+}
+
+func (s *Storage) GetURLsCount() (int, error) {
+	return len(s.kvStorage), nil
+}
+
+func (s *Storage) GetUsersCount() (int, error) {
+	return 0, nil
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -52,6 +53,11 @@ type BatchURLResponseObject struct {
 	URL string `json:"short_url"`
 }
 
+type StatsResponseObject struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
+
 // NewHandlers initializes and returns an HTTP handler with all defined routes and dependencies injected.
 func NewHandlers(ctx context.Context, conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
 
@@ -73,6 +79,8 @@ func NewHandlers(ctx context.Context, conf *config.Config, store repository.Stor
 	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
 	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))
 	mux.Delete(`/api/user/urls`, createDeleteUserURLSHandler(handlersData, ch))
+
+	mux.Get(`/api/internal/stats`, createGetStatistics(handlersData))
 
 	return mux
 }
@@ -121,6 +129,67 @@ func CreateGetHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 
 		updateObserver(observer, "shorten", p.redirectURL, userID)
 	}
+}
+
+func createGetStatistics(data handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ip := r.Header.Get("X-Forwarded-For")
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+
+		if data.Conf.TrustedSubnet == "" || !isTrustedIP(ip, data.Conf.TrustedSubnet) {
+			writeResponse(w, r, ShortenerResponse{
+				isError: true,
+				message: "Forbidden from IP: " + ip,
+				code:    http.StatusForbidden,
+			})
+			return
+		}
+
+		a := StatsResponseObject{}
+		urls, err := data.Store.GetURLsCount()
+		if err != nil {
+			writeResponse(w, r, ShortenerResponse{
+				isError: true,
+				message: http.StatusText(http.StatusInternalServerError),
+				code:    http.StatusInternalServerError,
+			})
+			return
+		}
+
+		a.URLs = urls
+
+		users, err := data.Store.GetUsersCount()
+		if err != nil {
+			writeResponse(w, r, ShortenerResponse{
+				isError: true,
+				message: http.StatusText(http.StatusInternalServerError),
+				code:    http.StatusInternalServerError,
+			})
+			return
+		}
+		a.Users = users
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(a)
+	}
+}
+
+func isTrustedIP(ip string, subnet string) bool {
+	ipAddr := net.ParseIP(ip)
+	if ipAddr == nil {
+		return false
+	}
+
+	_, cidr, err := net.ParseCIDR(subnet)
+	if err != nil || cidr == nil {
+		return false
+	}
+
+	return cidr.Contains(ipAddr)
 }
 
 func createPostJSONHandler(data handlers, observer *audit.Event) http.HandlerFunc {

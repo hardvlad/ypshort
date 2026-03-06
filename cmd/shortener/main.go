@@ -40,7 +40,7 @@ func main() {
 	sugarLogger := myLogger.Sugar()
 	sugarLogger.Infow("Старт сервера", "addr", flags.RunAddress)
 
-	conf := config.NewConfig(flags.ServerAddress, flags.Dsn, flags.Length)
+	conf := config.NewConfig(flags.ServerAddress, flags.Dsn, flags.Length, flags.TrustedSubnet)
 
 	var store repository.StorageInterface
 
