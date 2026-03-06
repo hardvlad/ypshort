@@ -12,10 +12,11 @@ type Config struct {
 	DBConfig        *db.Config
 	CookieName      string
 	TokenSecret     string
+	TrustedSubnet   string
 }
 
 // NewConfig creates a new configuration object.
-func NewConfig(serverAddress string, dsn string, length int) *Config {
+func NewConfig(serverAddress string, dsn string, length int, trustedSubnet string) *Config {
 	if serverAddress == "" {
 		serverAddress = "http://localhost:8080/"
 	}
@@ -27,5 +28,6 @@ func NewConfig(serverAddress string, dsn string, length int) *Config {
 		DBConfig:        db.NewConfig(dsn),
 		CookieName:      "yp_short_token",
 		TokenSecret:     "superSecretKey",
+		TrustedSubnet:   trustedSubnet,
 	}
 }

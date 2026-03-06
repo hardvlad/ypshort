@@ -14,6 +14,7 @@ import (
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/logger"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"github.com/hardvlad/ypshort/internal/service"
 )
 
 func BenchmarkTestAdd(b *testing.B) {
@@ -26,9 +27,10 @@ func BenchmarkTestAdd(b *testing.B) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	b.StartTimer()
 	for b.Loop() {

@@ -14,6 +14,7 @@ import (
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/logger"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"github.com/hardvlad/ypshort/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,12 +44,18 @@ func TestGetBefore(t *testing.T) {
 		},
 	}
 
+	myLogger, err := logger.InitLogger()
+	require.NoError(t, err)
+	defer myLogger.Sync()
+	sugarLogger := myLogger.Sugar()
+
 	observer := audit.InitObserver()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(context.Background(), conf, storage, nil, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -99,10 +106,11 @@ func TestAdd(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -153,10 +161,11 @@ func TestExisting(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 	_, _, err = storage.Set(`xxxxxxxxxx`, "https://ya.ru", 0)
 	require.NoError(t, err)
 
@@ -208,10 +217,11 @@ func TestAddJson(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -262,10 +272,11 @@ func TestAddJsonBatch(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

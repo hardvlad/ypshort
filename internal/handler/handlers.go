@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"github.com/hardvlad/ypshort/internal/service"
 	"go.uber.org/zap"
 
 	"github.com/go-chi/chi/v5"
@@ -26,9 +28,10 @@ type deleteChannelRequest struct {
 }
 
 type handlers struct {
-	Conf   *config.Config
-	Store  repository.StorageInterface
-	Logger *zap.SugaredLogger
+	Conf    *config.Config
+	Store   repository.StorageInterface
+	Logger  *zap.SugaredLogger
+	Service *service.ShortenerService
 }
 
 type ShortenerResponse struct {
@@ -52,15 +55,21 @@ type BatchURLResponseObject struct {
 	URL string `json:"short_url"`
 }
 
+type StatsResponseObject struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
+
 // NewHandlers initializes and returns an HTTP handler with all defined routes and dependencies injected.
-func NewHandlers(ctx context.Context, conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
+func NewHandlers(ctx context.Context, conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event, srv *service.ShortenerService) http.Handler {
 
 	mux := chi.NewRouter()
 
 	handlersData := handlers{
-		Conf:   conf,
-		Store:  store,
-		Logger: sugarLogger,
+		Conf:    conf,
+		Store:   store,
+		Logger:  sugarLogger,
+		Service: srv,
 	}
 
 	ch := make(chan deleteChannelRequest, 100)
@@ -73,6 +82,8 @@ func NewHandlers(ctx context.Context, conf *config.Config, store repository.Stor
 	mux.Post(`/api/shorten/batch`, createPostJSONBatchHandler(handlersData))
 	mux.Get(`/api/user/urls`, createGetUserURLSHandler(handlersData))
 	mux.Delete(`/api/user/urls`, createDeleteUserURLSHandler(handlersData, ch))
+
+	mux.Get(`/api/internal/stats`, createGetStatistics(handlersData))
 
 	return mux
 }
@@ -121,6 +132,67 @@ func CreateGetHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 
 		updateObserver(observer, "shorten", p.redirectURL, userID)
 	}
+}
+
+func createGetStatistics(data handlers) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		ip := r.Header.Get("X-Real-IP")
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+
+		if data.Conf.TrustedSubnet == "" || !isTrustedIP(ip, data.Conf.TrustedSubnet) {
+			writeResponse(w, r, ShortenerResponse{
+				isError: true,
+				message: "Forbidden from IP: " + ip,
+				code:    http.StatusForbidden,
+			})
+			return
+		}
+
+		a := StatsResponseObject{}
+		urls, err := data.Store.GetURLsCount()
+		if err != nil {
+			writeResponse(w, r, ShortenerResponse{
+				isError: true,
+				message: http.StatusText(http.StatusInternalServerError),
+				code:    http.StatusInternalServerError,
+			})
+			return
+		}
+
+		a.URLs = urls
+
+		users, err := data.Store.GetUsersCount()
+		if err != nil {
+			writeResponse(w, r, ShortenerResponse{
+				isError: true,
+				message: http.StatusText(http.StatusInternalServerError),
+				code:    http.StatusInternalServerError,
+			})
+			return
+		}
+		a.Users = users
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(a)
+	}
+}
+
+func isTrustedIP(ip string, subnet string) bool {
+	ipAddr := net.ParseIP(ip)
+	if ipAddr == nil {
+		return false
+	}
+
+	_, cidr, err := net.ParseCIDR(subnet)
+	if err != nil || cidr == nil {
+		return false
+	}
+
+	return cidr.Contains(ipAddr)
 }
 
 func createPostJSONHandler(data handlers, observer *audit.Event) http.HandlerFunc {
@@ -232,7 +304,7 @@ func createGetUserURLSHandler(data handlers) http.HandlerFunc {
 			userID = 0
 		}
 
-		userURLs, err := data.Store.GetUserData(userID)
+		userURLs, err := data.Service.ListUserURLs(r.Context(), userID)
 		if err != nil {
 			data.Logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userID)
 			writeResponse(w, r, ShortenerResponse{
@@ -357,7 +429,7 @@ func pingDB(data handlers) ShortenerResponse {
 }
 
 func processRedirect(data handlers, path string) ShortenerResponse {
-	urlRedirect, isDeleted, ok := data.Store.Get(path)
+	urlRedirect, isDeleted, ok := data.Service.Expand(path)
 	if isDeleted {
 		return ShortenerResponse{
 			isError: true,
@@ -383,7 +455,7 @@ func processRedirect(data handlers, path string) ShortenerResponse {
 
 func ProcessNewURL(data handlers, body string, userID int) ShortenerResponse {
 
-	success, shortLink, urlAlreadyExisted, err := getShortCode(data, body, 5, userID)
+	success, shortLink, urlAlreadyExisted, err := data.Service.Shorten(body, userID)
 	if err != nil {
 		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}

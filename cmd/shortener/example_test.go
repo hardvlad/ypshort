@@ -12,6 +12,7 @@ import (
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/logger"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"github.com/hardvlad/ypshort/internal/service"
 )
 
 func ExampleProcessNewURL() {
@@ -21,9 +22,10 @@ func ExampleProcessNewURL() {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	s := httptest.NewServer(mux)
 	defer s.Close()
@@ -49,9 +51,10 @@ func ExampleCreateGetHandler() {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
-	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
+	shortenerService := service.NewShortenerService(context.Background(), conf, storage, sugarLogger, observer)
+	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer, shortenerService)
 
 	_, _, _ = storage.Set(`zzzzzzzzzzz`, "https://baha.com", 0)
 
