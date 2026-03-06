@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/hardvlad/ypshort/internal/auth"
+	yphandler "github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/service"
 	pb "github.com/hardvlad/ypshort/proto"
 )
@@ -51,7 +52,7 @@ func AuthInterceptor(sugarLogger *zap.SugaredLogger, secretKey string, db *sql.D
 			}
 		}
 
-		ctx = context.WithValue(ctx, "user_id", userID)
+		ctx = context.WithValue(ctx, yphandler.UserIDKey, userID)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		return handler(ctx, req)
@@ -60,7 +61,7 @@ func AuthInterceptor(sugarLogger *zap.SugaredLogger, secretKey string, db *sql.D
 
 func (s *Server) ShortenURL(ctx context.Context, req *pb.URLShortenRequest) (*pb.URLShortenResponse, error) {
 
-	userID, ok := ctx.Value("user_id").(int)
+	userID, ok := ctx.Value(yphandler.UserIDKey).(int)
 	if !ok {
 		userID = 0
 	}
@@ -92,7 +93,7 @@ func (s *Server) ExpandURL(ctx context.Context, req *pb.URLExpandRequest) (*pb.U
 }
 
 func (s *Server) ListUserURLs(ctx context.Context, req *emptypb.Empty) (*pb.UserURLsResponse, error) {
-	userID, ok := ctx.Value("user_id").(int)
+	userID, ok := ctx.Value(yphandler.UserIDKey).(int)
 	if !ok {
 		userID = 0
 	}
