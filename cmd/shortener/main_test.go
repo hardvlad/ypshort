@@ -45,7 +45,7 @@ func TestGetBefore(t *testing.T) {
 
 	observer := audit.InitObserver()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, nil)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(context.Background(), conf, storage, nil, observer)
@@ -99,7 +99,7 @@ func TestAdd(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
@@ -153,7 +153,7 @@ func TestExisting(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
@@ -208,7 +208,7 @@ func TestAddJson(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
@@ -262,7 +262,7 @@ func TestAddJsonBatch(t *testing.T) {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, err := repository.NewStorage(conf.FileName, sugarLogger)
 	require.NoError(t, err)
 	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)

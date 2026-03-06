@@ -134,7 +134,7 @@ func CreateGetHandler(data handlers, observer *audit.Event) http.HandlerFunc {
 func createGetStatistics(data handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		ip := r.Header.Get("X-Forwarded-For")
+		ip := r.Header.Get("X-Real-IP")
 		if ip == "" {
 			ip = r.RemoteAddr
 		}
