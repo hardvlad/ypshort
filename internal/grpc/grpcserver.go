@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/hardvlad/ypshort/internal/auth"
 	"github.com/hardvlad/ypshort/internal/service"
@@ -90,7 +91,7 @@ func (s *Server) ExpandURL(ctx context.Context, req *pb.URLExpandRequest) (*pb.U
 	return nil, status.Errorf(codes.NotFound, "short link not found")
 }
 
-func (s *Server) ListUserURLs(ctx context.Context) (*pb.UserURLsResponse, error) {
+func (s *Server) ListUserURLs(ctx context.Context, req *emptypb.Empty) (*pb.UserURLsResponse, error) {
 	userID, ok := ctx.Value("user_id").(int)
 	if !ok {
 		userID = 0

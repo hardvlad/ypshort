@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,11 +13,16 @@ import (
 
 	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
+	ypgrpc "github.com/hardvlad/ypshort/internal/grpc"
 	"github.com/hardvlad/ypshort/internal/handler"
 	"github.com/hardvlad/ypshort/internal/logger"
 	"github.com/hardvlad/ypshort/internal/repository"
 	"github.com/hardvlad/ypshort/internal/repository/pg"
 	"github.com/hardvlad/ypshort/internal/server"
+	"github.com/hardvlad/ypshort/internal/service"
+	pb "github.com/hardvlad/ypshort/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -140,6 +146,28 @@ func main() {
 		cancel()
 		sugarLogger.Infow("Завершение работы сервиса 2")
 		close(idleConnsClosed)
+	}()
+
+	grpcAddr := flags.GRPCAddress
+	if grpcAddr == "" {
+		grpcAddr = ":8090"
+	}
+
+	grpcListener, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		sugarLogger.Fatalw(err.Error(), "event", "ошибка запуска gRPC")
+	}
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(ypgrpc.AuthInterceptor(sugarLogger, conf.TokenSecret, db)),
+	)
+	pb.RegisterShortenerServiceServer(grpcServer, ypgrpc.New(service.NewShortenerService(ctx, conf, store, sugarLogger, observer)))
+	reflection.Register(grpcServer)
+
+	go func() {
+		sugarLogger.Infow("запуск gRPC сервера")
+		if err := grpcServer.Serve(grpcListener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			sugarLogger.Fatalw(err.Error(), "event", "gRPC сервер не запустился")
+		}
 	}()
 
 	// старт сервера на адресе

@@ -5,30 +5,12 @@ import (
 	"errors"
 	"math/rand"
 	"net/url"
-	"time"
 
 	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
 	"go.uber.org/zap"
 )
-
-type URLData struct {
-	ID          string    `json:"id"`
-	OriginalURL string    `json:"original_url"`
-	CreatorID   string    `json:"-"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
-type Storage interface {
-	Save(ctx context.Context, data *URLData) error
-	GetByID(ctx context.Context, id string) (*URLData, error)
-	GetByCreator(ctx context.Context, creatorID string) ([]*URLData, error)
-}
-
-type AuthService interface {
-	GetUserID(ctx context.Context) (string, bool)
-}
 
 // ShortenerService реализует бизнес-логику
 type ShortenerService struct {

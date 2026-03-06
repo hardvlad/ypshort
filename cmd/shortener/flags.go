@@ -22,6 +22,7 @@ type programFlags struct {
 	SSLCertPath   string
 	SSLKeyPath    string
 	TrustedSubnet string
+	GRPCAddress   string
 }
 
 type jsonConfig struct {
@@ -33,6 +34,7 @@ type jsonConfig struct {
 	SSLCertificate  string `json:"ssl_certificate"`
 	SSLPrivateKey   string `json:"ssl_private_key"`
 	TrustedSubnet   string `json:"trusted_subnet"`
+	GRPCAddress     string `json:"grpc_address"`
 }
 
 func parseFlags() programFlags {
@@ -42,6 +44,11 @@ func parseFlags() programFlags {
 	flag.StringVar(&flags.RunAddress, "a", ":8080", "адрес запуска HTTP-сервера")
 	if envRunAddr, ok := os.LookupEnv("BASE_URL"); ok {
 		flags.RunAddress = envRunAddr
+	}
+
+	flag.StringVar(&flags.GRPCAddress, "g", ":8080", "адрес запуска GRPC сервера")
+	if envGRPCAddress, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
+		flags.GRPCAddress = envGRPCAddress
 	}
 
 	flag.IntVar(&flags.Length, "l", 6, "длина сокращённой части URL")
@@ -146,6 +153,10 @@ func parseFlags() programFlags {
 
 					if config.TrustedSubnet != "" && flags.TrustedSubnet == "" {
 						flags.TrustedSubnet = config.TrustedSubnet
+					}
+
+					if config.GRPCAddress != "" && flags.GRPCAddress == "" {
+						flags.GRPCAddress = config.GRPCAddress
 					}
 				}
 			}
