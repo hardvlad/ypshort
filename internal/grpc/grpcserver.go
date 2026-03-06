@@ -19,11 +19,12 @@ import (
 
 type Server struct {
 	pb.UnimplementedShortenerServiceServer
+	logger  *zap.SugaredLogger
 	service *service.ShortenerService
 }
 
-func New(svc *service.ShortenerService) *Server {
-	return &Server{service: svc}
+func New(svc *service.ShortenerService, Logger *zap.SugaredLogger) *Server {
+	return &Server{service: svc, logger: Logger}
 }
 
 func AuthInterceptor(sugarLogger *zap.SugaredLogger, secretKey string, db *sql.DB) grpc.UnaryServerInterceptor {
@@ -67,6 +68,9 @@ func (s *Server) ShortenURL(ctx context.Context, req *pb.URLShortenRequest) (*pb
 	}
 
 	success, fullURL, _, err := s.service.Shorten(req.GetUrl(), userID)
+	if err != nil {
+		s.logger.Debugw(err.Error(), "event", "добавление URL", "url", req.GetUrl())
+	}
 
 	var response pb.URLShortenResponse
 
@@ -100,6 +104,7 @@ func (s *Server) ListUserURLs(ctx context.Context, req *emptypb.Empty) (*pb.User
 
 	userURLs, err := s.service.ListUserURLs(ctx, userID)
 	if err != nil {
+		s.logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userID)
 		switch err.(type) {
 		case *service.APIError:
 			return nil, status.Errorf(status.Code(err), "%v", err)

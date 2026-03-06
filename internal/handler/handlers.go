@@ -16,6 +16,7 @@ import (
 	"github.com/hardvlad/ypshort/internal/audit"
 	"github.com/hardvlad/ypshort/internal/config"
 	"github.com/hardvlad/ypshort/internal/repository"
+	"github.com/hardvlad/ypshort/internal/service"
 	"go.uber.org/zap"
 
 	"github.com/go-chi/chi/v5"
@@ -27,9 +28,10 @@ type deleteChannelRequest struct {
 }
 
 type handlers struct {
-	Conf   *config.Config
-	Store  repository.StorageInterface
-	Logger *zap.SugaredLogger
+	Conf    *config.Config
+	Store   repository.StorageInterface
+	Logger  *zap.SugaredLogger
+	Service *service.ShortenerService
 }
 
 type ShortenerResponse struct {
@@ -59,14 +61,15 @@ type StatsResponseObject struct {
 }
 
 // NewHandlers initializes and returns an HTTP handler with all defined routes and dependencies injected.
-func NewHandlers(ctx context.Context, conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event) http.Handler {
+func NewHandlers(ctx context.Context, conf *config.Config, store repository.StorageInterface, sugarLogger *zap.SugaredLogger, observer *audit.Event, srv *service.ShortenerService) http.Handler {
 
 	mux := chi.NewRouter()
 
 	handlersData := handlers{
-		Conf:   conf,
-		Store:  store,
-		Logger: sugarLogger,
+		Conf:    conf,
+		Store:   store,
+		Logger:  sugarLogger,
+		Service: srv,
 	}
 
 	ch := make(chan deleteChannelRequest, 100)
@@ -301,7 +304,7 @@ func createGetUserURLSHandler(data handlers) http.HandlerFunc {
 			userID = 0
 		}
 
-		userURLs, err := data.Store.GetUserData(userID)
+		userURLs, err := data.Service.ListUserURLs(r.Context(), userID)
 		if err != nil {
 			data.Logger.Debugw(err.Error(), "event", "получение данных пользователя", "user_id", userID)
 			writeResponse(w, r, ShortenerResponse{
@@ -426,7 +429,7 @@ func pingDB(data handlers) ShortenerResponse {
 }
 
 func processRedirect(data handlers, path string) ShortenerResponse {
-	urlRedirect, isDeleted, ok := data.Store.Get(path)
+	urlRedirect, isDeleted, ok := data.Service.Expand(path)
 	if isDeleted {
 		return ShortenerResponse{
 			isError: true,
@@ -452,7 +455,7 @@ func processRedirect(data handlers, path string) ShortenerResponse {
 
 func ProcessNewURL(data handlers, body string, userID int) ShortenerResponse {
 
-	success, shortLink, urlAlreadyExisted, err := getShortCode(data, body, 5, userID)
+	success, shortLink, urlAlreadyExisted, err := data.Service.Shorten(body, userID)
 	if err != nil {
 		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}

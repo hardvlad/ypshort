@@ -105,11 +105,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	idleConnsClosed := make(chan struct{})
 
+	shortenerService := service.NewShortenerService(ctx, conf, store, sugarLogger, observer)
+
 	mux := logger.WithLogging(
 		handler.AuthorizationMiddleware(
 			handler.RequestDecompressHandle(
 				handler.ResponseCompressHandle(
-					handler.NewHandlers(ctx, conf, store, sugarLogger, observer),
+					handler.NewHandlers(ctx, conf, store, sugarLogger, observer, shortenerService),
 					sugarLogger,
 				),
 				sugarLogger,
@@ -160,7 +162,7 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(ypgrpc.AuthInterceptor(sugarLogger, conf.TokenSecret, db)),
 	)
-	pb.RegisterShortenerServiceServer(grpcServer, ypgrpc.New(service.NewShortenerService(ctx, conf, store, sugarLogger, observer)))
+	pb.RegisterShortenerServiceServer(grpcServer, ypgrpc.New(shortenerService, sugarLogger))
 	reflection.Register(grpcServer)
 
 	go func() {
