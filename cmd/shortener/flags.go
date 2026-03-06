@@ -46,7 +46,7 @@ func parseFlags() programFlags {
 		flags.RunAddress = envRunAddr
 	}
 
-	flag.StringVar(&flags.GRPCAddress, "g", ":8080", "адрес запуска GRPC сервера")
+	flag.StringVar(&flags.GRPCAddress, "g", ":8090", "адрес запуска GRPC сервера")
 	if envGRPCAddress, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
 		flags.GRPCAddress = envGRPCAddress
 	}
