@@ -4,7 +4,7 @@ package shortener;
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/hardvlad/ypshort/proto;ypshort";
+option go_package = "github.com/hardvlad/ypshort/proto;grpcproto";
 
 service ShortenerService {
   rpc ShortenURL (URLShortenRequest) returns (URLShortenResponse);

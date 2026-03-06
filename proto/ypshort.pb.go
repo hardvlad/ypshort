@@ -4,7 +4,7 @@
 // 	protoc        v7.34.0
 // source: proto/ypshort.proto
 
-package grpc
+package grpcproto
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -525,7 +525,7 @@ const file_proto_ypshort_proto_rawDesc = "" +
 	"\n" +
 	"ShortenURL\x12\x1c.shortener.URLShortenRequest\x1a\x1d.shortener.URLShortenResponse\x12F\n" +
 	"\tExpandURL\x12\x1b.shortener.URLExpandRequest\x1a\x1c.shortener.URLExpandResponse\x12C\n" +
-	"\fListUserURLs\x12\x16.google.protobuf.Empty\x1a\x1b.shortener.UserURLsResponseB+Z)github.com/hardvlad/ypshort/proto;ypshortb\beditionsp\xe8\a"
+	"\fListUserURLs\x12\x16.google.protobuf.Empty\x1a\x1b.shortener.UserURLsResponseB-Z+github.com/hardvlad/ypshort/proto;grpcprotob\beditionsp\xe8\a"
 
 var file_proto_ypshort_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proto_ypshort_proto_goTypes = []any{

@@ -4,7 +4,7 @@
 // - protoc             v7.34.0
 // source: proto/ypshort.proto
 
-package grpc
+package grpcproto
 
 import (
 	context "context"
