@@ -455,21 +455,12 @@ func processRedirect(data handlers, path string) ShortenerResponse {
 
 func ProcessNewURL(data handlers, body string, userID int) ShortenerResponse {
 
-	success, shortLink, urlAlreadyExisted, err := data.Service.Shorten(body, userID)
+	success, fullURL, urlAlreadyExisted, err := data.Service.Shorten(body, userID)
 	if err != nil {
 		data.Logger.Debugw(err.Error(), "event", "добавление URL", "url", body)
 	}
 
 	if !success {
-		return ShortenerResponse{
-			isError: true,
-			message: http.StatusText(http.StatusInternalServerError),
-			code:    http.StatusInternalServerError,
-		}
-	}
-
-	fullURL, err := url.JoinPath(data.Conf.ServerAddress, shortLink)
-	if err != nil {
 		return ShortenerResponse{
 			isError: true,
 			message: http.StatusText(http.StatusInternalServerError),
