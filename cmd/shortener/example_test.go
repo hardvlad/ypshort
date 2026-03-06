@@ -49,7 +49,7 @@ func ExampleCreateGetHandler() {
 	defer myLogger.Sync()
 	sugarLogger := myLogger.Sugar()
 
-	conf := config.NewConfig("http://localhost:8080/", "", 6)
+	conf := config.NewConfig("http://localhost:8080/", "", 6, "")
 	storage, _ := repository.NewStorage(conf.FileName, sugarLogger)
 	mux := handler.NewHandlers(context.Background(), conf, storage, sugarLogger, observer)
 
